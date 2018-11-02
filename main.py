@@ -7,41 +7,62 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.isophote import EllipseGeometry
 from photutils import EllipticalAperture
 from photutils.isophote import Ellipse
+from scipy.ndimage.interpolation import rotate
+from matplotlib.transforms import Affine2D
 
 
-r_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/obj/r1237651226783711239-objects.fits')
-g_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/g/obj/g1237651226783711239-objects.fits')
-i_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/i/obj/i1237651226783711239-objects.fits')
-u_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/u/obj/u1237651226783711239-objects.fits')
-z_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/z/obj/z1237651226783711239-objects.fits')
-r_real = fits.open('/home/mouse13/corotation/clear_outer/r/stamps/r1237651226783711239.fits')
-r_aper = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/aper/r1237651226783711239-apertures.fits')
+r_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/obj/r1237648720167174259-objects.fits')
+g_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/g/obj/g1237648720167174259-objects.fits')
+i_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/i/obj/i1237648720167174259-objects.fits')
+u_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/u/obj/u1237648720167174259-objects.fits')
+z_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/z/obj/z1237648720167174259-objects.fits')
+r_real = fits.open('/home/mouse13/corotation/clear_outer/r/stamps/r1237648720167174259.fits')
+r_aper = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/aper/r1237648720167174259-apertures.fits')
+r_cat = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/cat/r1237648720167174259-catalog.fits')
 
-# print(r_aper[0].header)  #read header. header['%tag'] - read specific tag from header
+# print(r_cat[0])  #read header. header['%tag'] - read specific tag from header
+# print(r_cat[1].columns)  # column names
+# print(type(r_cat[1].data['X_IMAGE']))
+# print(r_cat[1].data['NUMBER'])  # reading catalog; or specific field
+
 # print r_hdu[0].data, np.shape(r_hdu[0].data) # read data (image)
 
 # plt.figure('r')
-# plt.imshow(r_real[0].data, norm=colors.LogNorm(), cmap='Greys_r', origin='lower') # compare with ds9, rotated?
-# plt.show()
+# plt.imshow(r_aper[0].data, norm=colors.LogNorm(), cmap='Greys_r', origin='lower') # compare with ds9, rotated?
+# plt.grid(True)
+
 
 # astropy norm looks nicer
 plt.figure('r_norm')
 norm = ImageNormalize(stretch=LogStretch())
-plt.imshow(r_real[0].data, norm=norm, origin='lower', cmap='Greys_r')
+plt.imshow(r_aper[0].data, norm=norm, origin='lower', cmap='Greys_r')
 
-geometry = EllipseGeometry(x0=87, y0=68, sma=15, eps=0.3, pa=102.*np.pi/180.)
+for i in (r_cat[1].data['NUMBER']):
+    print(r_cat[1].data['NUMBER'][i-1], r_cat[1].data['X_IMAGE'][i-1], r_cat[1].data['Y_IMAGE'][i-1], r_cat[1].data['A_IMAGE'][i-1], r_cat[1].data['B_IMAGE'][i-1], r_cat[1].data['THETA_IMAGE'][i-1])
+
+geometry = EllipseGeometry(x0=184.9514, y0=314.40457, sma=45, eps=0.3, pa=43.24*np.pi/180.)
 aper = EllipticalAperture((geometry.x0, geometry.y0), geometry.sma, geometry.sma*(1 - geometry.eps), geometry.pa)
 aper.plot(color='green')
 
 ellipse = Ellipse(r_real[0].data, geometry)
 isolist = ellipse.fit_image()
-print(isolist.eps)
 
-smas = np.linspace(3, 20, 3)
+smas = np.linspace(3, 60, 4)
 for sma in smas:
     iso = isolist.get_closest(sma)
+    print(iso.x0, iso.y0, iso.eps, iso.sma, iso.pa, iso.npix_e, iso.ndata)
     x, y, = iso.sampled_coordinates()
-    plt.plot(x, y, color='white', lw=1)
+    plt.plot(x, y, color='red', lw=1, alpha=0.3)
+plt.show()
+
+plt.figure('rotated')
+img_rot = rotate(r_obj[0].data, angle=40.9)
+plt.imshow(img_rot, norm=norm, origin='lower', cmap='Greys_r')
+plt.show()
+
+plt.figure('scaled')
+img_deproj = Affine2D(matrix = img_rot).skew_deg(30, 15)
+plt.imshow(img_deproj, norm=norm, origin='lower', cmap='Greys_r')
 plt.show()
 
 # bad fitting especially for rings. how to obtain apertures from SE?
@@ -59,19 +80,19 @@ plt.show()
 # plt.figure('z-g')
 # plt.imshow(z_hdu[0].data-g_hdu[0].data, norm=colors.LogNorm(), cmap='binary')
 # plt.show()
-
-mask = np.zeros(np.shape(g_obj[0].data))
-mask1 = np.zeros(np.shape(g_obj[0].data))
-top = np.array([111, 10])
-bottom = np.array([68, 121])
-
-lvec = np.sqrt(np.dot(top - bottom, top - bottom))
-xstep = abs(top[0] - bottom[0]) / lvec
-ystep = abs(top[1] - bottom[1]) / lvec
-for i in range(int(lvec)):
-    x = int(top[0] - i * xstep)
-    y = int(top[1] + i * ystep)
-    mask[y, x] = 1.
+#
+# mask = np.zeros(np.shape(g_obj[0].data))
+# mask1 = np.zeros(np.shape(g_obj[0].data))
+# top = np.array([111, 10])
+# bottom = np.array([68, 121])
+#
+# lvec = np.sqrt(np.dot(top - bottom, top - bottom))
+# xstep = abs(top[0] - bottom[0]) / lvec
+# ystep = abs(top[1] - bottom[1]) / lvec
+# for i in range(int(lvec)):
+#     x = int(top[0] - i * xstep)
+#     y = int(top[1] + i * ystep)
+#     mask[y, x] = 1.
 
 # # slower method (971 mu_s vs 2.24 ms)
 # x = top[0]
@@ -90,24 +111,24 @@ for i in range(int(lvec)):
 # plt.imshow(mask)
 # plt.show()
 
-idxs = np.where(mask > 0)  # indices of the cut
-id_max = np.argmax(g_obj[0].data[idxs])  # index of the brightest element along the cut
-
-center = np.array(list(zip(idxs[0], idxs[1]))[id_max])  # brightest pixel along the cut
-
-radius = [np.sqrt(np.sum((pix - center) ** 2)) for pix in
-          np.array(list(zip(idxs[0], idxs[1]))[id_max:])]  # range of radii in pixels along the cut
-
-# plt.figure('cut')
-# plt.scatter(radius, g_obj[0].data[(idxs[0][id_max:], idxs[1][id_max:])], marker='.', color='midnightblue')
-# plt.show()
-
-
-# estimating the background
-from astropy.stats import mad_std
-
-bg_sigma_real = mad_std(r_real[0].data)
-print('real bg ', bg_sigma_real)
-
-bg_sigma_obj = mad_std(r_obj[0].data)
-print('obj bg ', bg_sigma_obj)
+# idxs = np.where(mask > 0)  # indices of the cut
+# id_max = np.argmax(g_obj[0].data[idxs])  # index of the brightest element along the cut
+#
+# center = np.array(list(zip(idxs[0], idxs[1]))[id_max])  # brightest pixel along the cut
+#
+# radius = [np.sqrt(np.sum((pix - center) ** 2)) for pix in
+#           np.array(list(zip(idxs[0], idxs[1]))[id_max:])]  # range of radii in pixels along the cut
+#
+# # plt.figure('cut')
+# # plt.scatter(radius, g_obj[0].data[(idxs[0][id_max:], idxs[1][id_max:])], marker='.', color='midnightblue')
+# # plt.show()
+#
+#
+# # estimating the background
+# from astropy.stats import mad_std
+#
+# bg_sigma_real = mad_std(r_real[0].data)
+# print('real bg ', bg_sigma_real)
+#
+# bg_sigma_obj = mad_std(r_obj[0].data)
+# print('obj bg ', bg_sigma_obj)
