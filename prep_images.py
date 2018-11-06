@@ -1,5 +1,6 @@
 from astropy.io import fits
 from scipy.ndimage.interpolation import affine_transform
+from scipy.ndimage.filters import gaussian_filter
 import numpy as np
 
 
@@ -45,6 +46,16 @@ def rotate_and_scale(image, angle, sx, sy):
     im_res = affine_transform(image, aff_mtx, mode='nearest', offset=offset)
 
     return im_res
+
+
+def common_FWHM(image, fwhm_inp, fwhm_res):
+    sigma_inp = fwhm_inp / 2. / np.sqrt(2. * np.log(2.))
+    sigma_res = fwhm_res / 2. / np.sqrt(2. * np.log(2.))
+    sigma_f = sigma_inp / sigma_res / 2. / np.sqrt(np.pi)
+    image_res = gaussian_filter(image, sigma_f)
+    return image_res
+
+
 
 
 

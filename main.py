@@ -9,7 +9,8 @@ from prep_images import *
 
 gal_name = '1237648720167174259'
 r_obj, r_aper, r_cat, r_real = read_images(gal_name, type=['obj', 'aper', 'cat', 'real'], band='r')
-
+g_obj, u_obj, i_obj, z_obj = read_images(gal_name, type=['obj'], band=['g', 'u', 'i', 'z'])
+seeing_giruz = np.array([1.764125, 1.500433, 1.50123, 1.875232, 1.51328])  # никаких отличий после свёртки
 
 # r_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/r/obj/r1237648720167174259-objects.fits')
 # g_obj = fits.open('/home/mouse13/corotation/clear_outer/se_frames/g/obj/g1237648720167174259-objects.fits')
@@ -40,9 +41,9 @@ r_obj, r_aper, r_cat, r_real = read_images(gal_name, type=['obj', 'aper', 'cat',
 # нужна какая-нибудь хрень, чтобы выбирать из каталога нужный объект, например, вместе с именем давать координаты и
 # искать ближайшие
 # look through columns:
-for i in (r_cat[1].data['NUMBER']):
-    print(r_cat[1].data['NUMBER'][i-1], r_cat[1].data['X_IMAGE'][i-1], r_cat[1].data['Y_IMAGE'][i-1],
-          r_cat[1].data['A_IMAGE'][i-1], r_cat[1].data['B_IMAGE'][i-1], r_cat[1].data['THETA_IMAGE'][i-1])
+# for i in (r_cat[1].data['NUMBER']):
+#     print(r_cat[1].data['NUMBER'][i-1], r_cat[1].data['X_IMAGE'][i-1], r_cat[1].data['Y_IMAGE'][i-1],
+#           r_cat[1].data['A_IMAGE'][i-1], r_cat[1].data['B_IMAGE'][i-1], r_cat[1].data['THETA_IMAGE'][i-1])
 
 num = 0  # number of object in catalog (from SE)
 
@@ -56,7 +57,6 @@ plt.figure()
 norm = ImageNormalize(stretch=LogStretch())
 plt.imshow(r_obj_rs, norm=norm, origin='lower', cmap='Greys_r')
 plt.show()
-
 
 
 # что мне вообще нужно от этого эллипса в итоге?! возможно, как раз то, что я беру из SE и использую выше
@@ -79,7 +79,7 @@ isolist = ellipse.fit_image()
 smas = np.linspace(3, 60, 4)
 for sma in smas:
     iso = isolist.get_closest(sma)
-    print(iso.x0, iso.y0, iso.eps, iso.sma, iso.pa, iso.npix_e, iso.ndata)
+    # print(iso.x0, iso.y0, iso.eps, iso.sma, iso.pa, iso.npix_e, iso.ndata)
     x, y, = iso.sampled_coordinates()
     plt.plot(x, y, color='red', lw=1, alpha=0.3)
     angle1 = iso.pa
@@ -91,6 +91,20 @@ plt.figure()
 norm = ImageNormalize(stretch=LogStretch())
 plt.imshow(r_obj_rs1, norm=norm, origin='lower', cmap='Greys_r')
 plt.show()
+
+# fwhm_max = max(seeing_giruz)
+#
+# i_obj_fwhm = common_FWHM(i_obj[0].data, seeing_giruz[1], fwhm_max)
+#
+# plt.figure()
+# norm = ImageNormalize(stretch=LogStretch())
+# plt.imshow(i_obj[0].data, norm=norm, origin='lower', cmap='Greys_r')
+# plt.show()
+#
+# plt.figure()
+# norm = ImageNormalize(stretch=LogStretch())
+# plt.imshow(i_obj_fwhm, norm=norm, origin='lower', cmap='Greys_r')
+# plt.show()
 
 # после фита эллипсом разворачивается лучше
 
