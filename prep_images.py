@@ -1,5 +1,5 @@
 from astropy.io import fits
-from scipy.ndimage.interpolation import affine_transform
+from scipy.ndimage.interpolation import affine_transform, rotate
 from scipy.ndimage.filters import gaussian_filter
 import numpy as np
 
@@ -27,7 +27,7 @@ def read_images(name, **kwargs):
             if tp != 'real':
                 fname = '/'.join([path, 'se_frames', band, tp, band+name+'-'+dict_type[tp]+'.fits'])
             else:
-                fname = '/'.join([path, band, 'stamps', band+name+'.fits'])
+                fname = '/'.join([path, band, 'stamps128', band+name+'.fits'])
             images.append(fits.open(fname))
 
     return images
@@ -45,7 +45,11 @@ def rotate_and_scale(image, angle, sx, sy):
     offset = np.array([y0, x0]) - np.array([y1, x1])
     im_res = affine_transform(image, aff_mtx, mode='nearest', offset=offset)
 
+    im_res = rotate(image, angle=angle)
+
     return im_res
+
+# нельзя сдвигать по самому яркому, потому что там могут быть звёзды
 
 
 def common_FWHM(image, fwhm_inp, fwhm_res):
