@@ -1,24 +1,44 @@
 import matplotlib.pyplot as plt
 from astropy.visualization import LogStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
-from photutils.isophote import EllipseGeometry
+from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture
-from photutils.isophote import Ellipse
 from prep_images import *
 import pandas as pd
 
-all_table = pd.read_csv('/home/mouse13/corotation/clear_outer/all_table.csv')
+all_table = pd.read_csv('../corotation/clear_outer/all_table.csv')
 
-print(all_table.columns)
+# print(all_table.columns)
 
-print(all_table.loc[all_table.objid14==1237651539800293493, ['sdss', 'ring', 'tt']])
+# print(all_table.loc[all_table.objid14==1237651539800293493, ['sdss', 'ring', 'tt']])
 
 # gal_name = '1237648720167174259'
 # seeing_giruz = np.array([1.764125, 1.500433, 1.50123, 1.875232, 1.51328])  # никаких отличий после свёртки
 gal_name = '1237651539800293493'
 seeing_giruz = np.array([1.57333, 1.463924, 1.388818, 1.685696, 1.571356])
-r_obj, r_aper, r_cat, r_real = read_images(gal_name, type=['obj', 'aper', 'cat', 'real'], band='r')
-g_obj, u_obj, i_obj, z_obj = read_images(gal_name, type=['obj'], band=['g', 'u', 'i', 'z'])
+r_obj, r_aper, r_cat, r_real = read_images(gal_name, type=['obj', 'aper', 'cat', 'real'], band='r', path = '../corotation/clear_outer')
+g_real, u_real, i_real, z_real = read_images(gal_name, type=['real'], band=['g', 'u', 'i', 'z'], path = '../corotation/clear_outer')
+r_seg, g_seg = read_images(gal_name, type=['seg'], band=['r', 'g'], path = '../corotation/clear_outer')
+
+zp_r = zeropoint(name=[gal_name], band=['r'], table=all_table)[0][0]
+
+r_obj_mag = to_mag(image=r_real[0].data, zp=zp_r) #, mask=[r_seg[0].data])  # почему вдруг сломалось?
+
+# idxs = np.where(r_seg[0].data == 1)
+# idxs_fin = np.isfinite(r_obj_mag[idxs])
+# print(np.amin(r_obj_mag[idxs][idxs_fin]))
+
+plt.figure()
+# norm = ImageNormalize(stretch=LogStretch())
+plt.imshow(r_obj_mag, origin='lower', cmap='Greys')
+plt.show()
+
+r, mu = average_sb(image=r_obj_mag, cat=r_cat[1].data.T[0])
+#
+plt.figure()
+plt.plot(r*0.396, mu)
+plt.ylim(mu.max(), mu.min())
+plt.show()
 
 # print(r_cat[0])  # read header. header['%tag'] - read specific tag from header
 # print(r_cat[1].columns)  # column names
@@ -32,45 +52,50 @@ norm = ImageNormalize(stretch=LogStretch())
 plt.imshow(r_real[0].data, norm=norm, origin='lower', cmap='Greys_r')
 plt.show()
 
+
+# plt.figure()
+# # norm = ImageNormalize(stretch=LogStretch())
+# plt.imshow(r_seg[0].data) #, norm=norm, origin='lower', cmap='Greys_r')
+# plt.show()
+
 # нужна какая-нибудь хрень, чтобы выбирать из каталога нужный объект, например, вместе с именем давать координаты и
 # искать ближайшие
 # look through columns:
-for i in (r_cat[1].data['NUMBER']):
-    print(r_cat[1].data['NUMBER'][i-1], r_cat[1].data['X_IMAGE'][i-1], r_cat[1].data['Y_IMAGE'][i-1],
-          r_cat[1].data['A_IMAGE'][i-1], r_cat[1].data['B_IMAGE'][i-1], r_cat[1].data['THETA_IMAGE'][i-1])
+# for i in (r_cat[1].data['NUMBER']):
+#     print(r_cat[1].data['NUMBER'][i-1], r_cat[1].data['X_IMAGE'][i-1], r_cat[1].data['Y_IMAGE'][i-1],
+#           r_cat[1].data['A_IMAGE'][i-1], r_cat[1].data['B_IMAGE'][i-1], r_cat[1].data['THETA_IMAGE'][i-1])
 
-num = 0  # number of object in catalog (from SE)
+# num = 0  # number of object in catalog (from SE)
+#
+# angle = r_cat[1].data['THETA_IMAGE'][num]
+# sx = 1.
+# sy = r_cat[1].data['A_IMAGE'][num]/r_cat[1].data['B_IMAGE'][num]
+#
+#
+# r_obj_rs = rotate_and_scale(r_real[0].data, -angle, sx, sy)  # rotate and scale image
 
-angle = r_cat[1].data['THETA_IMAGE'][num]
-sx = 1.
-sy = r_cat[1].data['A_IMAGE'][num]/r_cat[1].data['B_IMAGE'][num]
-
-
-r_obj_rs = rotate_and_scale(r_obj[0].data, -angle, sx, sy)  # rotate and scale image
-
-plt.figure()
-norm = ImageNormalize(stretch=LogStretch())
-plt.imshow(r_obj_rs, norm=norm, origin='lower', cmap='Greys_r')
-plt.show()
-
+# plt.figure()
+# norm = ImageNormalize(stretch=LogStretch())
+# plt.imshow(r_obj_rs, norm=norm, origin='lower', cmap='Greys_r')
+# plt.show()
 
 # что мне вообще нужно от этого эллипса в итоге?! возможно, как раз то, что я беру из SE и использую выше
 # в sma должен лежать какой-нибудь из радиусов.
 
-plt.figure('r_norm')
-norm = ImageNormalize(stretch=LogStretch())
-plt.imshow(r_obj[0].data, norm=norm, origin='lower', cmap='Greys_r')
-
-geometry = EllipseGeometry(x0=r_cat[1].data['X_IMAGE'][num], y0=r_cat[1].data['Y_IMAGE'][num],
-                           sma=r_cat[1].data['A_IMAGE'][num], eps=(1-r_cat[1].data['B_IMAGE'][num]/r_cat[1].data['A_IMAGE'][num]),
-                           pa=-r_cat[1].data['THETA_IMAGE'][num]*np.pi/180.)
-
-aper = EllipticalAperture((geometry.x0, geometry.y0), geometry.sma, geometry.sma*(1 - geometry.eps), geometry.pa)
-aper.plot(color='green')  # initial ellipse guess
-
-ellipse = Ellipse(r_obj[0].data, geometry)
-isolist = ellipse.fit_image()
-print(isolist)
+# plt.figure('r_norm')
+# norm = ImageNormalize(stretch=LogStretch())
+# plt.imshow(r_real[0].data, norm=norm, origin='lower', cmap='Greys_r')
+#
+# geometry = EllipseGeometry(x0=r_cat[1].data['X_IMAGE'][num], y0=r_cat[1].data['Y_IMAGE'][num],
+#                            sma=r_cat[1].data['A_IMAGE'][num], eps=(1-r_cat[1].data['B_IMAGE'][num]/r_cat[1].data['A_IMAGE'][num]),
+#                            pa=-r_cat[1].data['THETA_IMAGE'][num]*np.pi/180.)
+#
+# aper = EllipticalAperture((geometry.x0, geometry.y0), geometry.sma, geometry.sma*(1 - geometry.eps), geometry.pa)
+# aper.plot(color='green')  # initial ellipse guess
+#
+# ellipse = Ellipse(r_real[0].data, geometry)
+# isolist = ellipse.fit_image()
+# print(isolist)
 
 # smas = np.linspace(3, 60, 4)
 # for sma in smas:
@@ -79,7 +104,7 @@ print(isolist)
 #     x, y, = iso.sampled_coordinates()
 #     plt.plot(x, y, color='red', lw=1, alpha=0.3)
 #     angle1 = iso.pa
-plt.show()
+# plt.show()
 #
 # r_obj_rs1 = rotate_and_scale(r_obj[0].data, -angle1, sx, sy)  # obtain rotated and scaled image
 
