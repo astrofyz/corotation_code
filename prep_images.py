@@ -84,24 +84,27 @@ def main_obj(cat, mask, **kwargs):
 
 
 def rotate_and_scale(image, angle, sx, sy):
-    [x0, y0] = [elem[0] for elem in np.where(image == image.max())]  # max brightness of input
+    x0, y0 = 0.5*np.array(np.shape(image))
+    x1, y1 = 0.5*np.array(np.shape(image))
 
-    rot_mtx = [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]  #rotation matrix
-    sca_mtx = [[sx, 0], [0., sy]]  # scaling matrix; probably could be replased by s
+    # plt.figure()
+    # norm = ImageNormalize(stretch=LogStretch())
+    # plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
+    # plt.show()
+
+    rot_mtx = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])  #rotation matrix
+    sca_mtx = np.array([[sx, 0], [0., sy]])  # scaling matrix; probably could be replased by s
     aff_mtx = np.dot(rot_mtx, sca_mtx)
 
-    im_out = affine_transform(image, aff_mtx, mode='nearest')
-    [x1, y1] = [elem[0] for elem in np.where(im_out == im_out.max())]  # how calculate offset?
+    offset = np.array([x0, y0]) - np.dot(np.array([x1, y1]), aff_mtx)
+    im_res = affine_transform(image, aff_mtx.T, mode='constant', offset=offset)
 
-    offset = np.array([y0, x0]) - np.array([y1, x1])
-    im_res = affine_transform(image, aff_mtx, mode='nearest', offset=offset)
-
-    im_res = rotate(image, angle=angle)
+    # plt.figure()
+    # norm = ImageNormalize(stretch=LogStretch())
+    # plt.imshow(im_res, norm=norm, origin='lower', cmap='Greys_r')
+    # plt.show()
 
     return im_res
-
-# нельзя сдвигать по самому яркому, потому что там могут быть звёзды, могу передавать координаты из таблицы
-# можно отдельную функцию для wcs сделать и дальше передавать во все функции image координаты
 
 
 def common_FWHM(image, fwhm_inp, fwhm_res):
@@ -145,28 +148,20 @@ def zeropoint(**kwargs):
 def to_mag(**kwargs):
     """kwargs:
     image - image 2D array
-    mask - segmentation image
     zp - zeropoint
     (for one instance now)"""
 
     texp = 53.907
     image = kwargs.get('image')
     zp = kwargs.get('zp')
-    if kwargs.get('mask'):
-        mask = kwargs.get('mask')[0]
-        image_new = np.zeros_like(image)
-        idxs = np.where(mask != 0)
-        image_new[idxs] = zp-2.5*np.log10(abs(image[idxs]/texp))
-        return image_new
-    else:
-        return zp-2.5*np.log10(abs(image/texp))
+    return zp-2.5*np.log10(abs(image/texp))
 
 def ellipse_fit(**kwargs):
     """kwargs:
     cat - string of catalog (e.g. r_cat[1].data.T[0]
     image - image 2D array
     step - step between fitting ellipses (default = 0.1)
-    f - initial sma = sma_catalog / f"""
+    f - initial sma = sma_catalog / f (default = 5)"""
 
     cat = kwargs.get('cat')  # print(r_cat[1].data.T[0]['X_IMAGE']) подавать на вход строку транспонированного каталога
     image = kwargs.get('image')
@@ -214,9 +209,6 @@ def calc_sb(image, cat, **kwargs):
     """
     x0 = cat['X_IMAGE']
     y0 = cat['Y_IMAGE']
-    sma0 = cat['A_IMAGE']
-    eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
-    theta0 = cat['THETA_IMAGE']
 
     if kwargs.get('step'):
         step = kwargs.get('step')
@@ -228,6 +220,22 @@ def calc_sb(image, cat, **kwargs):
     else:
         f_max = 4.
 
+    if kwargs.get('eps'):
+        eps0 = kwargs.get('eps')
+    else:
+        eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
+
+    if kwargs.get('theta'):
+        theta0 = kwargs.get('theta')
+    else:
+        theta0 = cat['THETA_IMAGE']
+
+    if kwargs.get('sma'):
+        sma0 = kwargs.get('sma')
+    else:
+        sma0 = cat['A_IMAGE']
+
+
 #     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma,
 #                                   geom_inp.sma*np.sqrt(1 - geom_inp.eps**2), geom_inp.pa)
 #     aper_inp.plot(color='green')  # initial ellipse guess
@@ -235,7 +243,7 @@ def calc_sb(image, cat, **kwargs):
     a_in = []
     a_out = []
     b_out = []
-    a_in.append(sma0/10.)
+    a_in.append(step)
     a_out.append(a_in[-1]+step)
     b_out.append(a_out[-1] * np.sqrt(1 - eps0 ** 2))
     while a_out[-1] < sma0*f_max:
@@ -244,6 +252,7 @@ def calc_sb(image, cat, **kwargs):
         b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
 
     a_in, a_out, b_out = np.array([a_in, a_out, b_out])
+    # print(a_in)
 
     annulae = []
     for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
@@ -251,13 +260,16 @@ def calc_sb(image, cat, **kwargs):
 
     table_aper = aperture_photometry(image, annulae)
 
-#     # print(table_aper.colnames)
+    # print(table_aper.colnames)
     num_apers = len(table_aper.colnames) - 3
-    print(num_apers)
+    print('number of apertures ', num_apers)
 
     intens = []
     for i in range(num_apers):
-        intens.append(aperture_photometry(image, annulae)['aperture_sum_'+str(i)][0])
+        intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
+        print('aperture_sum', table_aper['aperture_sum_'+str(i)])
+        print('area', annulae[i].area())
+        # print(table_aper['aperture_sum_'+str(i)][0])
 #
 #     for ann in annulae:
 #         ann.plot(color='gold', alpha=0.05)
@@ -269,7 +281,7 @@ def calc_sb(image, cat, **kwargs):
 #     plt.scatter((a_out+a_in)/2., intens_ann)
 #     plt.show()
 #
-    return (a_out+a_in)/2., intens
+    return (a_out+a_in)/2., np.array(intens)
 #
 #
 #
