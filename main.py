@@ -20,25 +20,39 @@ r_obj, r_aper, r_cat, r_real = read_images(gal_name, type=['obj', 'aper', 'cat',
 g_real, u_real, i_real, z_real = read_images(gal_name, type=['real'], band=['g', 'u', 'i', 'z'], path = '../corotation/clear_outer')
 r_seg, g_seg = read_images(gal_name, type=['seg'], band=['r', 'g'], path = '../corotation/clear_outer')
 
-zp_r = zeropoint(name=[gal_name], band=['r'], table=all_table)[0][0]
+# zp_r = zeropoint(name=[gal_name], band=['r'], table=all_table)[0][0]
 
-r_obj_mag = to_mag(image=r_real[0].data, zp=zp_r) #, mask=[r_seg[0].data])  # почему вдруг сломалось?
+# bkg = calc_bkg(r_real[0].data, r_seg[0].data)
+
+# norm = ImageNormalize(stretch=SqrtStretch())
+# plt.figure()
+# plt.imshow(bkg.background, origin='lower', cmap='Greys_r', norm=norm)
+# plt.show()
+#
+# print(np.mean(bkg.background), np.median(bkg.background), np.std(bkg.background))
+
+# r_bg = r_real[0].data - bkg.background
+
+# r_obj_mag = to_mag(image=r_bg, zp=zp_r) #, mask=[r_seg[0].data])  # почему вдруг сломалось?
 
 # idxs = np.where(r_seg[0].data == 1)
 # idxs_fin = np.isfinite(r_obj_mag[idxs])
 # print(np.amin(r_obj_mag[idxs][idxs_fin]))
 
-plt.figure()
+# plt.figure()
 # norm = ImageNormalize(stretch=LogStretch())
-plt.imshow(r_obj_mag, origin='lower', cmap='Greys')
-plt.show()
+# plt.imshow(r_obj_mag, origin='lower', cmap='Greys')
+# plt.show()
 
-r, mu = average_sb(image=r_obj_mag, cat=r_cat[1].data.T[0])
+# average_sb(image = r_real[0].data, cat=r_cat[1].data.T[0])
+# r, mu = average_sb(image=r_obj_mag, cat=r_cat[1].data.T[0])
 #
-plt.figure()
-plt.plot(r*0.396, mu)
-plt.ylim(mu.max(), mu.min())
-plt.show()
+# plt.figure()
+# plt.plot((r*0.396)[:350], mu[:350])
+# plt.ylim(mu.max(), mu.min())
+# plt.show()
+
+# print(mu)
 
 # print(r_cat[0])  # read header. header['%tag'] - read specific tag from header
 # print(r_cat[1].columns)  # column names
@@ -47,9 +61,18 @@ plt.show()
 
 # print r_hdu[0].data, np.shape(r_hdu[0].data) # read data (image)
 
+print(ellipse_fit(cat=r_cat[1].data.T[0], image=r_real[0].data, step=0.5))
+
+sma, intens = calc_sb(image=r_real[0].data, cat=r_cat[1].data.T[0], step=0.7)
+
 plt.figure()
 norm = ImageNormalize(stretch=LogStretch())
 plt.imshow(r_real[0].data, norm=norm, origin='lower', cmap='Greys_r')
+plt.show()
+
+plt.figure()
+plt.plot(sma, intens)
+# plt.ylim(mu.max(), mu.min())
 plt.show()
 
 
@@ -197,3 +220,5 @@ plt.show()
 #
 # bg_sigma_obj = mad_std(r_obj[0].data)
 # print('obj bg ', bg_sigma_obj)
+
+
