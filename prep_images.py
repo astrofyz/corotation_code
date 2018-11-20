@@ -9,7 +9,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.stats import sigma_clipped_stats
 import pandas as pd
 from photutils.isophote import EllipseGeometry, Ellipse
-from photutils import EllipticalAperture, Background2D, make_source_mask, EllipticalAnnulus, aperture_photometry
+from photutils import EllipticalAperture, Background2D, make_source_mask, EllipticalAnnulus, aperture_photometry, RectangularAperture
 
 
 def read_images(name, **kwargs):
@@ -282,6 +282,39 @@ def calc_sb(image, cat, **kwargs):
 #     plt.show()
 #
     return (a_out+a_in)/2., np.array(intens)
+
+def slit(image, step, width, centre, rmax, angle):
+    step_par = np.array([step*np.cos(angle), step*np.sin(angle)])
+    step_per = np.array([step*np.cos(angle+np.pi/2.), step*np.sin(angle+np.pi/2.)])
+
+    parallel = [centre]  # сюда я хочу записывать центры прямоугольников
+    perpendicular = [centre]  # и сюда тоже
+
+    i = 1
+    dr = 0
+    while (dr < rmax):
+        parallel.append(centre+i*step_par)
+        parallel.append(centre-i*step_par)
+        perpendicular.append(centre + i * step_per)
+        perpendicular.append(centre - i * step_per)
+        dr = np.sqrt(np.dot(i*step_par, i*step_par))
+        i += 1
+
+    parallel = np.array(parallel)
+    perpendicular = np.array(perpendicular)
+    ind = np.lexsort([parallel.T[0], parallel.T[1]])
+
+    r_par = [parallel[i] for i in ind]
+    r_per = [perpendicular[i] for i in ind]
+
+
+
+
+
+
+
+
+
 #
 #
 #
