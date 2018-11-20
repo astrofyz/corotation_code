@@ -1,7 +1,7 @@
 from prep_images import *
 import pandas as pd
 
-all_table = pd.read_csv('../corotation/clear_outer/all_table.csv')
+all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
 
 # print(all_table.columns)
 
@@ -69,32 +69,67 @@ sma_pix_i, sb_i = calc_sb(real_mag_i, i_cat[1].data.T[0], angle=pa, sma=r_cat[1]
                           f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_z, sb_z = calc_sb(real_mag_z, z_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
                           f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 
-plt.figure()
-plt.plot(sma_pix_r*0.396, sb_r)
-plt.ylim(sb_r.max(), sb_r.min())
+
+mag_max = np.amax(np.concatenate([sb_r, sb_u, sb_i, sb_g, sb_z]))
+mag_min = np.amin(np.concatenate([sb_r, sb_u, sb_i, sb_g, sb_z]))
+
+
+f, (a_all, a_gi, a_ri, a_gr, a_ug) = plt.subplots(5, 1, gridspec_kw = {'height_ratios': [8, 1, 1, 1, 1]}, sharex=True, figsize=(8, 10))
+
+# plt.figure()
+title_name, title_ra, title_dec = all_table.loc[all_table.objid14==int(gal_name), ['sdss', 'ra', 'dec']].values[0]
+# print(title_str)
+a_all.set_title(f"{title_name} \nra={title_ra}, dec={title_dec}")
+a_all.plot(sma_pix_r*0.396, sb_r, label='r', color='red')
+a_all.plot(sma_pix_g*0.396, sb_g, label='g', color='blue')
+a_all.plot(sma_pix_u*0.396, sb_u, label='u', color='m')
+a_all.plot(sma_pix_i*0.396, sb_i, label='i', color='gold')
+a_all.plot(sma_pix_z*0.396, sb_z, label='z', color='g')
+a_all.set_ylim(mag_max, mag_min)
+a_all.legend()
+a_all.set_ylabel('$\mu[u,g,r,i] \quad (mag\:arcsec^{-2})$')
+# a_all.set_xlabel('r (arcsec)')
+# plt.show()
+
+# plt.figure()
+a_gi.plot(sma_pix_g_i*0.396, sb_g_i)
+# plt.ylim(sb_g_i.max(), sb_g_i.min())
+a_gi.set_ylabel('$g-i$')
+# a_gi.set_xlabel('r (arcsec)')
+# plt.show()
+
+# plt.figure()
+a_ri.plot(sma_pix_r_i*0.396, sb_r_i)
+# plt.ylim(sb_r_i.max(), sb_r_i.min())
+a_ri.set_ylabel('$r-i$')
+# a_ri.set_xlabel('r (arcsec)')
+# plt.show()
+
+# plt.figure()
+a_gr.plot(sma_pix_r*0.396, sb_g_r)
+# plt.ylim(sb_g_r.max(), sb_g_r.min())
+a_gr.set_ylabel('$g-r$')
+# a_gr.set_xlabel('r (arcsec)')
+# plt.show()
+
+# plt.figure()
+a_ug.plot(sma_pix_u_g*0.396, sb_u_g)
+# plt.ylim(sb_u_g.max(), sb_u_g.min())
+a_ug.set_ylabel('$u-g$')
+a_ug.set_xlabel('r (arcsec)')
 plt.show()
 
-plt.figure()
-plt.plot(sma_pix_g*0.396, sb_g)
-plt.ylim(sb_g.max(), sb_g.min())
-plt.show()
-
-plt.figure()
-plt.plot(sma_pix_u*0.396, sb_u)
-plt.ylim(sb_u.max(), sb_u.min())
-plt.show()
-
-plt.figure()
-plt.plot(sma_pix_i*0.396, sb_i)
-plt.ylim(sb_i.max(), sb_i.min())
-plt.show()
-
-plt.figure()
-plt.plot(sma_pix_z*0.396, sb_z)
-plt.ylim(sb_z.max(), sb_z.min())
-plt.show()
-
+sy = all_table.loc[all_table.objid14==int(gal_name), ['ba']].values[0][0]
+print(sy)
 r_rot = rotate_and_scale(real_bg_r, angle=pa*np.pi/180., sx=1., sy=1.)
 
 plt.figure()

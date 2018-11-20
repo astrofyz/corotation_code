@@ -94,7 +94,7 @@ def rotate_and_scale(image, angle, sx, sy):
 
     rot_mtx = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])  #rotation matrix
     sca_mtx = np.array([[sx, 0], [0., sy]])  # scaling matrix; probably could be replased by s
-    aff_mtx = np.dot(rot_mtx, sca_mtx)
+    aff_mtx = np.dot(sca_mtx, rot_mtx)
 
     offset = np.array([x0, y0]) - np.dot(np.array([x1, y1]), aff_mtx)
     im_res = affine_transform(image, aff_mtx.T, mode='constant', offset=offset)
@@ -267,8 +267,8 @@ def calc_sb(image, cat, **kwargs):
     intens = []
     for i in range(num_apers):
         intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
-        print('aperture_sum', table_aper['aperture_sum_'+str(i)])
-        print('area', annulae[i].area())
+        # print('aperture_sum', table_aper['aperture_sum_'+str(i)])
+        # print('area', annulae[i].area())
         # print(table_aper['aperture_sum_'+str(i)][0])
 #
 #     for ann in annulae:
