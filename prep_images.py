@@ -262,7 +262,7 @@ def calc_sb(image, cat, **kwargs):
 
     # print(table_aper.colnames)
     num_apers = len(table_aper.colnames) - 3
-    print('number of apertures ', num_apers)
+    # print('number of apertures ', num_apers)
 
     intens = []
     for i in range(num_apers):
@@ -306,6 +306,30 @@ def slit(image, step, width, centre, rmax, angle):
 
     r_par = [parallel[i] for i in ind]
     r_per = [perpendicular[i] for i in ind]
+
+    apertures_par = RectangularAperture(r_par, width, step, angle)
+    apertures_per = RectangularAperture(r_per, width, step, angle+np.pi/2.)
+
+    table_par = aperture_photometry(image, apertures_par)
+    table_per = aperture_photometry(image, apertures_per)
+
+    area = step*width
+    # print(i)
+
+    intense_par = [elem / area for elem in table_par['aperture_sum']]
+    intense_per = [elem / area for elem in table_per['aperture_sum']]
+
+    # rad_par = np.array([np.sqrt(np.dot(elem - centre, elem - centre)) for elem in r_par])  # надо переделать
+    # rad_per = np.array([np.sqrt(np.dot(elem - centre, elem - centre)) for elem in r_per])
+    rad = np.array([k*step for k in range(-i+1, i, 1)])
+    # print(rad_per)
+    # print(rad)
+
+    return [rad, intense_par], [rad, intense_per]
+
+
+
+
 
 
 
