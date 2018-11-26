@@ -60,23 +60,23 @@ eps, pa = ellipse_fit(cat=r_cat[1].data.T[0], image=r_real[0].data)
 # eps_z, pa_z = ellipse_fit(cat=z_cat[1].data.T[0], image=z_real[0].data)
 
 sma_pix_r, sb_r = calc_sb(real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_g, sb_g = calc_sb(real_mag_g, g_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_u, sb_u = calc_sb(real_mag_u, u_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_i, sb_i = calc_sb(real_mag_i, i_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_z, sb_z = calc_sb(real_mag_z, z_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
-                          f_max=2.5, eps=np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
+                          f_max=2.5, eps=0.1)  # np.sqrt(1 - (r_cat[1].data['B_IMAGE'][0] / r_cat[1].data['A_IMAGE'][0])**2))
 
 par = slit(real_mag_r, .7, 2.5, [x_real, y_real], 50, np.pi/7.)[0]
 per = slit(real_mag_r, .7, 2.5, [x_real, y_real], 50, np.pi/7.)[1]
@@ -84,8 +84,8 @@ per = slit(real_mag_r, .7, 2.5, [x_real, y_real], 50, np.pi/7.)[1]
 # print(par)
 #
 plt.figure(figsize=(10, 7))
-plt.plot(par[0]*0.396, par[1], label = 'parallel')
-plt.plot(per[0]*0.396, per[1], label = 'perpendicular')
+plt.plot(par[0]*0.396, par[1], label='parallel')
+plt.plot(per[0]*0.396, per[1], label='perpendicular')
 plt.gca().invert_yaxis()
 # plt.axes().set_aspect('equal')
 plt.legend()

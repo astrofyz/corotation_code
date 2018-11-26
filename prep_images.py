@@ -188,6 +188,10 @@ def ellipse_fit(**kwargs):
 
     geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=sma0/f, eps=eps0, pa=theta0*np.pi/180.)  # initial ellipse
 
+    aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
+                                  geom_inp.pa)
+    aper_inp.plot(color='green')  # initial ellipse gues
+
     ellipse = Ellipse(image, geom_inp)
     isolist = ellipse.fit_image(step=step)
 
@@ -223,7 +227,8 @@ def calc_sb(image, cat, **kwargs):
     if kwargs.get('eps'):
         eps0 = kwargs.get('eps')
     else:
-        eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
+        eps0 = 0.9
+        # eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
 
     if kwargs.get('theta'):
         theta0 = kwargs.get('theta')
@@ -235,11 +240,6 @@ def calc_sb(image, cat, **kwargs):
     else:
         sma0 = cat['A_IMAGE']
 
-
-#     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma,
-#                                   geom_inp.sma*np.sqrt(1 - geom_inp.eps**2), geom_inp.pa)
-#     aper_inp.plot(color='green')  # initial ellipse guess
-#
     a_in = []
     a_out = []
     b_out = []
