@@ -1,15 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.ndimage.interpolation import affine_transform, rotate
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.interpolation import affine_transform
+from scipy.ndimage.filters import gaussian_filter, median_filter
 from astropy.io import fits
-from astropy import wcs
-from astropy.visualization import LogStretch, SqrtStretch
+from astropy.visualization import LogStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 from astropy.stats import sigma_clipped_stats
-import pandas as pd
 from photutils.isophote import EllipseGeometry, Ellipse
-from photutils import EllipticalAperture, Background2D, make_source_mask, EllipticalAnnulus, aperture_photometry, RectangularAperture
+from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
 
 
 def read_images(name, **kwargs):
@@ -87,22 +85,12 @@ def rotate_and_scale(image, angle, sx, sy):
     x0, y0 = 0.5*np.array(np.shape(image))
     x1, y1 = 0.5*np.array(np.shape(image))
 
-    # plt.figure()
-    # norm = ImageNormalize(stretch=LogStretch())
-    # plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
-    # plt.show()
-
     rot_mtx = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])  #rotation matrix
     sca_mtx = np.array([[sx, 0], [0., sy]])  # scaling matrix; probably could be replased by s
     aff_mtx = np.dot(sca_mtx, rot_mtx)
 
     offset = np.array([x0, y0]) - np.dot(np.array([x1, y1]), aff_mtx)
-    im_res = affine_transform(image, aff_mtx.T, mode='constant', offset=offset)
-
-    # plt.figure()
-    # norm = ImageNormalize(stretch=LogStretch())
-    # plt.imshow(im_res, norm=norm, origin='lower', cmap='Greys_r')
-    # plt.show()
+    im_res = affine_transform(image, aff_mtx.T, mode='nearest', offset=offset)
 
     return im_res
 
@@ -184,24 +172,29 @@ def ellipse_fit(**kwargs):
     sma0 = cat['A_IMAGE']
     eps0 = np.sqrt(1-(cat['B_IMAGE']/cat['A_IMAGE'])**2)
     theta0 = cat['THETA_IMAGE']
-    print(eps0, theta0)
 
     geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=sma0/f, eps=eps0, pa=theta0*np.pi/180.)  # initial ellipse
 
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
-    aper_inp.plot(color='green')  # initial ellipse gues
+    aper_inp.plot(color='green')  # initial ellipse guess
+
+    aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), f*geom_inp.sma, f*geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
+                                  geom_inp.pa)
+    aper_inp.plot(color='gold')  # final ellipse guess
+
 
     ellipse = Ellipse(image, geom_inp)
     isolist = ellipse.fit_image(step=step)
 
     for iso in isolist:
         x, y, = iso.sampled_coordinates()
-        # print(iso.eps, iso.pa)
         plt.plot(x, y, color='red', lw=1, alpha=0.4)
     plt.show()
+    print('eps =', isolist.eps[-1])
+    print('pa =', isolist.pa[-1])
 
-    return isolist.eps[-1], isolist.pa[-1]*180./np.pi
+    return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
 
 
 def calc_sb(image, cat, **kwargs):
@@ -227,8 +220,7 @@ def calc_sb(image, cat, **kwargs):
     if kwargs.get('eps'):
         eps0 = kwargs.get('eps')
     else:
-        eps0 = 0.9
-        # eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
+        eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
 
     if kwargs.get('theta'):
         theta0 = kwargs.get('theta')
@@ -239,6 +231,8 @@ def calc_sb(image, cat, **kwargs):
         sma0 = kwargs.get('sma')
     else:
         sma0 = cat['A_IMAGE']
+
+    # print('calc_sb fmax = ', f_max, 'step =', step)
 
     a_in = []
     a_out = []
@@ -252,7 +246,6 @@ def calc_sb(image, cat, **kwargs):
         b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
 
     a_in, a_out, b_out = np.array([a_in, a_out, b_out])
-    # print(a_in)
 
     annulae = []
     for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
@@ -260,28 +253,14 @@ def calc_sb(image, cat, **kwargs):
 
     table_aper = aperture_photometry(image, annulae)
 
-    # print(table_aper.colnames)
     num_apers = len(table_aper.colnames) - 3
-    # print('number of apertures ', num_apers)
 
     intens = []
     for i in range(num_apers):
         intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
-        # print('aperture_sum', table_aper['aperture_sum_'+str(i)])
-        # print('area', annulae[i].area())
-        # print(table_aper['aperture_sum_'+str(i)][0])
-#
-#     for ann in annulae:
-#         ann.plot(color='gold', alpha=0.05)
-#
-#     #
-#     print(intens_ann, len(intens_ann))
-#
-#     plt.figure()
-#     plt.scatter((a_out+a_in)/2., intens_ann)
-#     plt.show()
 #
     return (a_out+a_in)/2., np.array(intens)
+
 
 def slit(image, step, width, centre, rmax, angle):
     step_par = np.array([step*np.cos(angle), step*np.sin(angle)])
@@ -292,7 +271,7 @@ def slit(image, step, width, centre, rmax, angle):
 
     i = 1
     dr = 0
-    while (dr < rmax):
+    while dr < rmax:
         parallel.append(centre+i*step_par)
         parallel.append(centre-i*step_par)
         perpendicular.append(centre + i * step_per)
@@ -314,120 +293,32 @@ def slit(image, step, width, centre, rmax, angle):
     table_per = aperture_photometry(image, apertures_per)
 
     area = step*width
-    # print(i)
 
     intense_par = [elem / area for elem in table_par['aperture_sum']]
     intense_per = [elem / area for elem in table_per['aperture_sum']]
 
-    # rad_par = np.array([np.sqrt(np.dot(elem - centre, elem - centre)) for elem in r_par])  # надо переделать
-    # rad_per = np.array([np.sqrt(np.dot(elem - centre, elem - centre)) for elem in r_per])
     rad = np.array([k*step for k in range(-i+1, i, 1)])
-    # print(rad_per)
-    # print(rad)
-
     return [rad, intense_par], [rad, intense_per]
 
 
-
-
-
-
-
-
-
-
-
-
-
-#
-#
-#
-# def ellipse_fit(**kwargs):
-#     """kwargs:
-#     cat - string of catalog (e.g. r_cat[1].data.T[0]
-#     image - image 2D array"""
-#
-#     cat = kwargs.get('cat')  # print(r_cat[1].data.T[0]['X_IMAGE']) подавать на вход строку транспонированного каталога
-#     image = kwargs.get('image')
-#
-#     plt.figure('r_norm')
-#     norm = ImageNormalize(stretch=LogStretch())
-#     plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
-#
-#     x0 = cat['X_IMAGE']
-#     y0 = cat['Y_IMAGE']
-#     sma0 = cat['A_IMAGE']
-#     eps0 = np.sqrt(1-(cat['B_IMAGE']/cat['A_IMAGE'])**2)
-#     theta0 = cat['THETA_IMAGE']
-#
-#     print(x0,y0)
-#
-#
-#     geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=sma0, eps=eps0, pa=theta0*np.pi/180.)  # initial ellipse
-#
-#     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma,
-#                                   geom_inp.sma*np.sqrt(1 - geom_inp.eps**2), geom_inp.pa)
-#     aper_inp.plot(color='green')  # initial ellipse guess
-#
-#     step = 5.5
-#     a_in = []
-#     a_out = []
-#     b_out = []
-#     a_in.append(sma0/10.)
-#     a_out.append(a_in[-1]+step)
-#     b_out.append(a_out[-1] * np.sqrt(1 - eps0 ** 2))
-#     while a_out[-1] < sma0*4.5:
-#         a_in.append(a_in[-1]+step)
-#         a_out.append(a_out[-1]+step)
-#         b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
-#
-#     a_in, a_out, b_out = np.array([a_in, a_out, b_out])
-#
-#     annulae = []
-#     for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
-#         annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
-#
-#     table_aper = aperture_photometry(image, annulae)
-#
-#     # print(table_aper.colnames)
-#     num_apers = len(table_aper.colnames) - 3
-#     print(num_apers)
-#     #
-#     intens_ann = []
-#     for i in range(num_apers):
-#         intens_ann.append(aperture_photometry(image, annulae)['aperture_sum_'+str(i)][0])
-#
-#     for ann in annulae:
-#         ann.plot(color='gold', alpha=0.05)
-#
-#     # ellipse = Ellipse(image, geom_inp)
-#     # isolist = ellipse.fit_image(maxrit = geom_inp.sma/2., step=1.5, maxsma=geom_inp.sma*3.5)
-#     # #
-#     # intens = []
-#     # sma = []
-#     # sum = 0
-#     # npix0 = 0
-#     # tflux0 = 0
-#     # for iso in isolist:
-#     #     intens.append(iso.intens)
-#     #     sma.append(iso.sma)
-#     #     if type(iso.npix_e) is int:
-#     #         print(iso.x0, iso.y0, iso.intens, (iso.tflux_e-tflux0)/(iso.npix_e-npix0), iso.tflux_e/iso.npix_e, iso.tflux_e-tflux0)
-#     #         tflux0 = iso.tflux_e
-#     #         npix0 = iso.npix_e
-#     #     x, y, = iso.sampled_coordinates()
-#     #     plt.plot(x, y, color='red', lw=1, alpha=0.1)
-#     # intens = np.array(intens)
-#     # sma = np.array(sma)
-#     plt.show()
-#     #
-#     print(intens_ann, len(intens_ann))
-#
-#     plt.figure()
-#     plt.scatter((a_out+a_in)/2., intens_ann)
-#     plt.show()
-#
-#     # return sma, intens
+def unsharp_mask(image, **kwargs):  # пока не работает, забей
+    if kwargs.get('size'):
+        size = kwargs.get('size')
+    else:
+        size = 10
+    image_med = median_filter(image, size=size)
+    plt.figure()
+    norm = ImageNormalize(stretch=LogStretch())
+    plt.imshow(image, cmap='Greys_r', origin='lower', norm=norm)
+    plt.show()
+    plt.figure()
+    plt.imshow(image_med, cmap='Greys_r', origin='lower', norm=norm)
+    plt.show()
+    image_res = gaussian_filter(image-image_med, sigma=2)
+    plt.figure()
+    plt.imshow(image_res, cmap='Greys_r', origin='lower', norm=norm)
+    plt.show()
+    return image_res
 
 
 def calc_bkg(image, mask, **kwargs):
@@ -437,14 +328,13 @@ def calc_bkg(image, mask, **kwargs):
     size - backfilter_size
     return:
     Background2D object"""
-    mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask)
-    print('background', (mean, median, std))
 
     if kwargs.get('size'):
         size = kwargs.get('size')
     else:
         size = int(np.shape(image)[0]/4)
     bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
+    # print('background', bkg.background_median)
     return bkg
 
 
