@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.interpolate import splrep, splev
 from scipy.ndimage import shift
 from astropy.wcs import wcs
+from scipy.signal import argrelextrema
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
 all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_astrofyz.csv')
@@ -70,24 +71,26 @@ eps, pa = ellipse_fit(cat=r_cat[1].data.T[0], image=r_real[0].data, f=5, step=0.
 # eps_i, pa_i = ellipse_fit(cat=i_cat[1].data.T[0], image=i_real[0].data)
 # eps_z, pa_z = ellipse_fit(cat=z_cat[1].data.T[0], image=z_real[0].data)
 
-sma_pix_r, sb_r = calc_sb(real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+step = 2.2
+
+sma_pix_r, sb_r = calc_sb(real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
                           f_max=4., eps=eps)
-sma_pix_g, sb_g = calc_sb(real_mag_g, g_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+sma_pix_g, sb_g = calc_sb(real_mag_g, g_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
                           f_max=4., eps=eps)
-sma_pix_u, sb_u = calc_sb(real_mag_u, u_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+sma_pix_u, sb_u = calc_sb(real_mag_u, u_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
                           f_max=4., eps=eps)
-sma_pix_i, sb_i = calc_sb(real_mag_i, i_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+sma_pix_i, sb_i = calc_sb(real_mag_i, i_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
                           f_max=4., eps=eps)
-sma_pix_z, sb_z = calc_sb(real_mag_z, z_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=0.4,
+sma_pix_z, sb_z = calc_sb(real_mag_z, z_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
                           f_max=4., eps=eps)
 sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=0.4, f_max=4., eps=eps)
+                              step=step, f_max=4., eps=eps)
 sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=0.4, f_max=4., eps=eps)
+                              step=step, f_max=4., eps=eps)
 sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=0.4, f_max=4., eps=eps)
+                              step=step, f_max=4., eps=eps)
 sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=0.4, f_max=4., eps=eps)
+                              step=step, f_max=4., eps=eps)
 
 bg_mag = calc_bkg(real_mag_r, mask_r).background_median
 
@@ -96,6 +99,13 @@ bg_mag = calc_bkg(real_mag_r, mask_r).background_median
 
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
+# print(mag_max)
+# print(mag_min)
+
+par_r = find_parabola(sma_pix_r, sb_r, s=0.1)
+par_g = find_parabola(sma_pix_g, sb_g, s=0.1)
+par_i = find_parabola(sma_pix_i, sb_i, s=0.1)
+par_z = find_parabola(sma_pix_z, sb_z, s=0.1)
 
 f, (a_all, a_gi, a_ri, a_gr, a_ug) = plt.subplots(5, 1, gridspec_kw={'height_ratios': [8, 1, 1, 1, 1]}, sharex=True,
                                                   figsize=(8, 10))
@@ -103,8 +113,6 @@ f, (a_all, a_gi, a_ri, a_gr, a_ug) = plt.subplots(5, 1, gridspec_kw={'height_rat
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 
 a_all.set_title(f"{title_name} \nra={title_ra}, dec={title_dec}")
-
-from scipy.signal import argrelextrema
 
 # min_r = argrelextrema(sb_r, np.less)[0]
 # max_r = argrelextrema(sb_r, np.greater)[0]
@@ -115,24 +123,27 @@ from scipy.signal import argrelextrema
 
 a_all.plot(sma_pix_r*0.396, sb_r, label='r', color='red')
 a_all.plot(sma_pix_g*0.396, sb_g, label='g', color='blue')
-a_all.plot(sma_pix_u*0.396, sb_u, label='u', color='m')
 a_all.plot(sma_pix_i*0.396, sb_i, label='i', color='gold')
 a_all.plot(sma_pix_z*0.396, sb_z, label='z', color='g')
+a_all.plot(sma_pix_u*0.396, sb_u, label='u', color='m')
 
-tck = splrep(sma_pix_r, sb_r, s=0.3)
-ynew = splev(sma_pix_r, tck, der=0)
-a_all.scatter(sma_pix_r*0.396, ynew, marker='.', color='orange')
-a_all.axhline(bg_mag, label='bg_r')
+a_all.plot(par_r[0], par_r[1], color='k')
+a_all.plot(par_g[0], par_g[1], color='k')
+a_all.plot(par_z[0], par_z[1], color='k')
+a_all.plot(par_i[0], par_i[1], color='k')
 
-max_r = argrelextrema(ynew, np.less)[0]  # magnitude!
-min_r = argrelextrema(ynew, np.greater)[0]
+a_all.axvline(par_r[0][np.argmax(par_r[1])], color='maroon')
+a_all.axvline(par_g[0][np.argmax(par_g[1])], color='navy')
+a_all.axvline(par_i[0][np.argmax(par_i[1])], color='sienna')
+a_all.axvline(par_z[0][np.argmax(par_z[1])], color='darkgreen')
 
-print('rel max', max_r)
-print('rel min', min_r)
-print(sb_r[max_r])
+rad_r = par_r[0][np.argmax(par_r[1])]
+rad_g = par_g[0][np.argmax(par_g[1])]
+rad_i = par_i[0][np.argmax(par_i[1])]
+rad_z = par_z[0][np.argmax(par_z[1])]
 
-a_all.scatter(sma_pix_r[max_r]*0.396, sb_r[max_r], color='slateblue', label='max')
-a_all.scatter(sma_pix_r[min_r]*0.396, sb_r[min_r], color='olive', label='min')
+print('radii ', rad_r, rad_g, rad_i, rad_z)
+
 
 a_all.set_ylim(mag_max, mag_min)
 a_all.legend()
@@ -155,9 +166,6 @@ plt.show()
 real_mag_r_sh = shift(real_mag_r, [256-y_real, 256-x_real], mode='nearest')
 
 rot_r = rotate_and_scale(real_mag_r_sh, angle=pa, sx=1., sy=1.)
-# print('max and min values for rotated and original images')
-# print(np.amax(rot_r), np.amax(real_mag_r))
-# print(np.amin(rot_r), np.amin(real_mag_r))
 
 vmin_mag = zp_r-2.5*np.log10(vmin/53.907)
 vmax_mag = zp_r-2.5*np.log10(vmax/53.907)

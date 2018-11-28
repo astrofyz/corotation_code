@@ -5,9 +5,11 @@ from scipy.ndimage.filters import gaussian_filter, median_filter
 from astropy.io import fits
 from astropy.visualization import LogStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
-from astropy.stats import sigma_clipped_stats
+# from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
+from scipy.interpolate import splrep, splev
+from scipy.signal import argrelextrema
 
 
 def read_images(name, **kwargs):
@@ -183,7 +185,6 @@ def ellipse_fit(**kwargs):
                                   geom_inp.pa)
     aper_inp.plot(color='gold')  # final ellipse guess
 
-
     ellipse = Ellipse(image, geom_inp)
     isolist = ellipse.fit_image(step=step)
 
@@ -336,6 +337,46 @@ def calc_bkg(image, mask, **kwargs):
     bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
     # print('background', bkg.background_median)
     return bkg
+
+
+def find_reg(r, sb, **kwargs):
+    if kwargs.get('s'):
+        s = kwargs.get('s')
+    else:
+        s = 0.3
+
+    tck = splrep(r, sb, s=s)
+    ynew = splev(r, tck, der=0)
+
+    max_r = argrelextrema(ynew, np.less)[0]  # magnitude!
+    # print('max', max_r)
+    min_r = argrelextrema(ynew, np.greater)[0]
+    # print('min', min_r)
+
+    plt.figure()
+    plt.plot(r*0.396, sb, color='red', alpha=0.3)
+    plt.gca().invert_yaxis()
+    plt.scatter(r*0.396, ynew, marker='.', color='green', alpha=0.3)
+    plt.axvline(r[max_r[0]]*0.396, color='blue')
+    plt.axvline(r[min_r[0]]*0.396, color='gold')
+
+    interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
+    plt.scatter(r[interval]*0.396, sb[interval], color='pink', s=12)
+
+    return interval
+
+
+def find_parabola(r, sb, **kwargs):
+    fit_interval = find_reg(r, sb, s=kwargs.get('s'))
+    fit_r = r[fit_interval]
+    fit_sb = sb[fit_interval]
+    p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
+
+    return fit_r*0.396, p(fit_r*0.396)
+
+
+
+
 
 
 
