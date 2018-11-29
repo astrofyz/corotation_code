@@ -9,7 +9,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
 from scipy.interpolate import splrep, splev
-from scipy.signal import argrelextrema
+import scipy.signal as signal
 
 
 def read_images(name, **kwargs):
@@ -51,6 +51,7 @@ def main_obj(cat, mask, **kwargs):
     xy - list of x,y pixels of object's centre (e.g. from funsky)
     radec - sky coord ra,dec of object's centre, need wcs
     wcs - world coordinate system from header of real file"""
+
     # w = wcs.WCS(real[0].header)
     # ra_real, dec_real = table.loc[all_table.objid14 == int(name), ['ra', 'dec']].values[0]
     if kwargs.get('xy'):
@@ -69,12 +70,12 @@ def main_obj(cat, mask, **kwargs):
     id_x = np.argmin(delta_x)
     id_y = np.argmin(delta_y)
 
-    idx = 1 + id_x & id_y
+    idx = (id_x & id_y) + 1
 
-    if idx + 1 != 1:
+    if idx != 1:
         r_seg_new = np.zeros_like(mask)
         r_seg_new[:, :] = mask[:, :]
-        idxs_real = np.where(mask == idx + 1)
+        idxs_real = np.where(mask == idx)
         idxs_fake = np.where(mask == 1)
         r_seg_new[idxs_fake] = idx + 1
         r_seg_new[idxs_real] = 1
@@ -156,10 +157,6 @@ def ellipse_fit(**kwargs):
 
     cat = kwargs.get('cat')  # print(r_cat[1].data.T[0]['X_IMAGE']) подавать на вход строку транспонированного каталога
     image = kwargs.get('image')
-    if kwargs.get('f'):
-        f = kwargs.get('f')
-    else:
-        f = 5
 
     if kwargs.get('step'):
         step = kwargs.get('step')
@@ -170,21 +167,28 @@ def ellipse_fit(**kwargs):
     norm = ImageNormalize(stretch=LogStretch())
     plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
 
-    x0 = cat['X_IMAGE']
-    y0 = cat['Y_IMAGE']
-    sma0 = cat['A_IMAGE']
-    eps0 = np.sqrt(1-(cat['B_IMAGE']/cat['A_IMAGE'])**2)
-    theta0 = cat['THETA_IMAGE']
+    x0 = kwargs.get('x')
+    y0 = kwargs.get('y')
+    sma0 = kwargs.get('sma')
+    eps0 = kwargs.get('eps')
+    theta0 = kwargs.get('theta')
 
-    geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=sma0/f, eps=eps0, pa=theta0*np.pi/180.)  # initial ellipse
+    if kwargs.get('f'):
+        f = kwargs.get('f')
+        geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=sma0 / f, eps=eps0, pa=theta0 * np.pi / 180.)  # initial ellipse
+
+    if kwargs.get('rmin'):
+        rmin = kwargs.get('rmin')
+        geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=rmin, eps=eps0, pa=theta0 * np.pi / 180.)  # initial ellipse
+
 
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
     aper_inp.plot(color='green', alpha=0.3)  # initial ellipse guess
 
-    aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), f*geom_inp.sma, f*geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
-                                  geom_inp.pa)
-    aper_inp.plot(color='gold')  # final ellipse guess
+    # aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), f*geom_inp.sma, f*geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
+    #                               geom_inp.pa)
+    # aper_inp.plot(color='gold')  # final ellipse guess
 
     ellipse = Ellipse(image, geom_inp)
 
@@ -408,26 +412,42 @@ def find_reg(r, sb, **kwargs):
     tck = splrep(r, sb, s=s)
     ynew = splev(r, tck, der=0)
 
-    max_r = argrelextrema(ynew, np.less)[0]  # magnitude!
+    try:
+        max_r = signal.argrelextrema(ynew, np.less)[0]  # magnitude!
+        min_r = signal.argrelextrema(ynew, np.greater)[0]
+        interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
+    except:
+        print('no interval was found!')
+        n = len(r)
+        interval = range(int(n/4), int(n/2), 1)
     # print('max', max_r)
-    min_r = argrelextrema(ynew, np.greater)[0]
     # print('min', min_r)
-    interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
 
-    # plt.figure()
-    # plt.plot(r*0.396, sb, color='red', alpha=0.3)
-    # plt.gca().invert_yaxis()
-    # plt.scatter(r*0.396, ynew, marker='.', color='green', alpha=0.3)
+    N = 8
+    Wn = 0.05
+    b, a = signal.butter(N, Wn)
+    sb_filt = signal.filtfilt(b, a, sb, padlen=10)
+
+    plt.figure()
+    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
+    plt.gca().invert_yaxis()
+    plt.scatter(r*0.396, ynew, marker='.', color='salmon', alpha=0.2, label='spline', lw=6)
+    plt.plot(r*0.396, sb_filt, color='deepskyblue', label='filter', linestyle='dashed')
     # plt.axvline(r[max_r[0]]*0.396, color='blue')
     # plt.axvline(r[min_r[0]]*0.396, color='gold')
-    #
-    # plt.scatter(r[interval]*0.396, sb[interval], color='pink', s=12)
+    plt.scatter(r[interval]*0.396, sb[interval], color='darkmagenta', s=12)
+    plt.title(kwargs.get('title'))
+    plt.xlabel('r (arcsec)')
+    plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+    plt.legend()
+    plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    plt.show()
 
     return interval
 
 
 def find_parabola(r, sb, **kwargs):
-    fit_interval = find_reg(r, sb, s=kwargs.get('s'))
+    fit_interval = find_reg(r, sb, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
     fit_r = r[fit_interval]
     fit_sb = sb[fit_interval]
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
@@ -438,35 +458,35 @@ def find_parabola(r, sb, **kwargs):
 def find_outer(image, centre, **kwargs):
     """ image = segmentation map with main object == 1"""
 
+    print('find_outer centre', centre)
     idx_bg = np.where(image != 1)
     idx_main = np.where(image == 1)
     image[idx_main] = 100
     image[idx_bg] = 0
 
-    # plt.figure()
-    # plt.imshow(image, origin='lower')
-    # plt.show()
+    plt.figure()
+    plt.imshow(image, origin='lower')
+    plt.show()
 
     r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
-    hist = np.histogram(r, bins=100, density=True)
+    hist = np.histogram(r, bins=20, density=True)
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
-    idx = np.searchsorted(cum_hist, 0.99)
-    # print(idx)
-    # print(cum_hist)
-    # print(cum_hist_check)
-    r_max = 0.5*(hist[1][1:] + hist[1][:-1])[idx]
-    # print(r_max)
+    idx_max = np.searchsorted(cum_hist, 0.95)
+    idx_min = np.searchsorted(cum_hist, 0.05)
+    r_max = 0.5*(hist[1][1:] + hist[1][:-1])[idx_max]
+    r_min = 0.5*(hist[1][1:] + hist[1][:-1])[idx_min]
 
     plt.figure()
     plt.hist(r, bins=100, density=True)
     plt.axvline(r_max, color='red', label='$r_{max}$')
+    plt.axvline(r_min, color='darkorange', label='$r_{min}$')
     plt.title(kwargs.get('title'))
     plt.xlabel('r (pix)')
     plt.legend()
     plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
     plt.show()
-    return r_max
+    return r_max, r_min
 
 
 

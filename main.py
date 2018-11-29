@@ -8,15 +8,51 @@ import scipy.signal as signal
 import csv
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_astrofyz.csv')
+all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_astrofyz.csv')
 
-path = '../corotation/buta_gal/image'
-out_path = '/home/mouse13/corotation_code/data/'
+# path = '../corotation/buta_gal/image'
+# out_path = '/home/mouse13/corotation_code/data/'
+
+path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+out_path = '/media/mouse13/My Passport/corotation_code/data/'
 
 # print(all_table.columns)
 
 # gal_name = '1237651539800293493'
-gal_name = '587726033334632485'
+# gal_name = '588007004191326250'
+# gal_name = '587738618098614323'
+# gal_name = '588010879845531657'
+# gal_name = '587739862562373904'
+# gal_name = '587739848605499583'
+# gal_name = '587739609700040719'
+# gal_name = '587742551759257682'
+# gal_name = '587732771864182806'
+# gal_name = '587724648720826467'
+# gal_name = '588848898849112176'
+# gal_name = '587739707948204093'
+# gal_name = '587735349636300832'
+# gal_name = '588011124118585393'
+# gal_name = '587738947740041304'
+# gal_name = '587737827288809605'
+# gal_name = '587741490906398723'
+# gal_name = '587741490908037216'
+# gal_name = '587732048403824840'
+# gal_name = '587738946131132437'
+# gal_name = '587736940908511450'
+# gal_name = '587736584429306061'
+# gal_name = '587729150383095831'
+# gal_name = '587729150383161562'
+# gal_name = '587741490893684878'
+# gal_name = '587736804008722435'
+# gal_name = '587739608618696777'
+# gal_name = '587729388214222955'
+# gal_name = '587729653427142882'
+# gal_name = '588017566556225638'
+# gal_name = '588017702388039685'
+# gal_name = '587726033334632485'
+# gal_name = '587736808298774638'
+# gal_name = '587730021717966911'
+gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -33,12 +69,24 @@ g_cat, u_cat, i_cat, z_cat = read_images(gal_name, type=['cat'], band=['g', 'u',
 w = wcs.WCS(r_real[0].header)
 ra_real, dec_real = all_table.loc[all_table.objid14 == int(gal_name), ['ra', 'dec']].values[0]
 x_real, y_real = w.wcs_world2pix(ra_real, dec_real, 1)
+print('coords = ', x_real, y_real)
 
 mask_r = main_obj(cat=r_cat, mask=r_seg[0].data, xy=[x_real, y_real])
 mask_g = main_obj(cat=g_cat, mask=g_seg[0].data, xy=[x_real, y_real])
 mask_i = main_obj(cat=i_cat, mask=i_seg[0].data, xy=[x_real, y_real])
 mask_u = main_obj(cat=u_cat, mask=u_seg[0].data, xy=[x_real, y_real])
 mask_z = main_obj(cat=z_cat, mask=z_seg[0].data, xy=[x_real, y_real])
+
+
+# idx_bg = np.where(mask_r != 1)
+# idx_main = np.where(mask_r == 1)
+# new_mask = np.zeros_like(mask_r)
+# new_mask[idx_main] = 100
+#
+# plt.figure()
+# plt.imshow(new_mask, origin='lower')
+# plt.title('mister tykva')
+# plt.show()
 
 giruz_fwhm = []
 max_seeing = max(seeing_giruz)
@@ -72,10 +120,16 @@ real_mag_i = to_mag(image=real_bg_i, zp=zp_i)
 real_mag_z = to_mag(image=real_bg_z, zp=zp_z)
 
 r_seg_sh = shift(mask_r, [256-y_real, 256-x_real], mode='nearest')
-r_max = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path)*1.3
+r_max, r_min = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path)
+r_max = r_max*1.3
+r_min = r_min*1.3
 print('r_max = ', r_max)
+print('r_min = ', r_min)
 
-eps, pa = ellipse_fit(cat=r_cat[1].data.T[0], image=r_real[0].data, f=3, step=0.4, rmax=r_max,
+eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
+                      eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
+                      sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
+                      f=3, step=0.4, rmax=r_max, rmin=r_min,
                       title=title, figname=gal_name, path=out_path)
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)
@@ -114,10 +168,10 @@ mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 # print(mag_max)
 # print(mag_min)
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.1)
-par_g = find_parabola(sma_pix_g, sb_g, s=0.1)
-par_i = find_parabola(sma_pix_i, sb_i, s=0.1)
-par_z = find_parabola(sma_pix_z, sb_z, s=0.1)
+par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name)
+par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
+par_i = find_parabola(sma_pix_i, sb_i, s=0.1, path=out_path, figname=gal_name)
+par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name)
 
 rad_r = par_r[0][np.argmax(par_r[1])]
 rad_g = par_g[0][np.argmax(par_g[1])]
@@ -215,6 +269,7 @@ with open(out_path+'result.csv', 'a', newline='') as csvfile:
     res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
     res_writer.writerow(['name : ' + title_name])
     res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
+    res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
 
     res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
     res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
