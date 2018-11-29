@@ -146,6 +146,7 @@ def to_mag(**kwargs):
     zp = kwargs.get('zp')
     return zp-2.5*np.log10(abs(image/texp))
 
+
 def ellipse_fit(**kwargs):
     """kwargs:
     cat - string of catalog (e.g. r_cat[1].data.T[0]
@@ -179,13 +180,38 @@ def ellipse_fit(**kwargs):
 
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
-    aper_inp.plot(color='green')  # initial ellipse guess
+    aper_inp.plot(color='green', alpha=0.3)  # initial ellipse guess
 
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), f*geom_inp.sma, f*geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
     aper_inp.plot(color='gold')  # final ellipse guess
 
     ellipse = Ellipse(image, geom_inp)
+
+    if kwargs.get('rmax'):
+        maxsma = kwargs.get('rmax')
+
+        aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
+                                      maxsma * np.sqrt(1 - geom_inp.eps ** 2),
+                                      geom_inp.pa)
+        aper_inp.plot(color='gold', alpha=0.3)  # final ellipse guess
+
+        isolist = ellipse.fit_image(step=step, maxsma=maxsma)
+
+        for iso in isolist:
+            x, y, = iso.sampled_coordinates()
+            plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
+        plt.xlabel('x (pix)')
+        plt.ylabel('y (pix)')
+        plt.title(kwargs.get('title'))
+        plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
+        plt.show()
+        print('eps =', isolist.eps[-1])
+        print('pa =', isolist.pa[-1])
+        # print('sma_max = ', isolist.sma[:])
+
+        return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
+
     isolist = ellipse.fit_image(step=step)
 
     for iso in isolist:
@@ -194,6 +220,7 @@ def ellipse_fit(**kwargs):
     plt.show()
     print('eps =', isolist.eps[-1])
     print('pa =', isolist.pa[-1])
+    # print('sma_max = ', isolist.sma[:])
 
     return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
 
@@ -233,14 +260,37 @@ def calc_sb(image, cat, **kwargs):
     else:
         sma0 = cat['A_IMAGE']
 
-    # print('calc_sb fmax = ', f_max, 'step =', step)
-
     a_in = []
     a_out = []
     b_out = []
     a_in.append(step)
     a_out.append(a_in[-1]+step)
     b_out.append(a_out[-1] * np.sqrt(1 - eps0 ** 2))
+
+    if kwargs.get('rmax'):
+        maxsma = kwargs.get('rmax')
+
+        while a_out[-1] < maxsma:
+            a_in.append(a_in[-1] + step)
+            a_out.append(a_out[-1] + step)
+            b_out.append(a_out[-1] * np.sqrt(1 - eps0 ** 2))
+
+        a_in, a_out, b_out = np.array([a_in, a_out, b_out])
+
+        annulae = []
+        for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
+            annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
+
+        table_aper = aperture_photometry(image, annulae)
+
+        num_apers = len(table_aper.colnames) - 3
+
+        intens = []
+        for i in range(num_apers):
+            intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
+        #
+        return (a_out + a_in) / 2., np.array(intens)
+
     while a_out[-1] < sma0*f_max:
         a_in.append(a_in[-1]+step)
         a_out.append(a_out[-1]+step)
@@ -263,7 +313,11 @@ def calc_sb(image, cat, **kwargs):
     return (a_out+a_in)/2., np.array(intens)
 
 
-def slit(image, step, width, centre, rmax, angle):
+def slit(image, step, width, centre, rmax, angle, **kwargs):
+
+    plt.figure()
+    plt.imshow(image, origin='lower', cmap='Greys')
+
     step_par = np.array([step*np.cos(angle), step*np.sin(angle)])
     step_per = np.array([step*np.cos(angle+np.pi/2.), step*np.sin(angle+np.pi/2.)])
 
@@ -289,6 +343,12 @@ def slit(image, step, width, centre, rmax, angle):
 
     apertures_par = RectangularAperture(r_par, width, step, angle)
     apertures_per = RectangularAperture(r_per, width, step, angle+np.pi/2.)
+
+    apertures_par.plot(color='green')
+    apertures_per.plot(color='red')
+    plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
+    plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
+    plt.show()
 
     table_par = aperture_photometry(image, apertures_par)
     table_per = aperture_photometry(image, apertures_per)
@@ -352,16 +412,16 @@ def find_reg(r, sb, **kwargs):
     # print('max', max_r)
     min_r = argrelextrema(ynew, np.greater)[0]
     # print('min', min_r)
-
-    plt.figure()
-    plt.plot(r*0.396, sb, color='red', alpha=0.3)
-    plt.gca().invert_yaxis()
-    plt.scatter(r*0.396, ynew, marker='.', color='green', alpha=0.3)
-    plt.axvline(r[max_r[0]]*0.396, color='blue')
-    plt.axvline(r[min_r[0]]*0.396, color='gold')
-
     interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
-    plt.scatter(r[interval]*0.396, sb[interval], color='pink', s=12)
+
+    # plt.figure()
+    # plt.plot(r*0.396, sb, color='red', alpha=0.3)
+    # plt.gca().invert_yaxis()
+    # plt.scatter(r*0.396, ynew, marker='.', color='green', alpha=0.3)
+    # plt.axvline(r[max_r[0]]*0.396, color='blue')
+    # plt.axvline(r[min_r[0]]*0.396, color='gold')
+    #
+    # plt.scatter(r[interval]*0.396, sb[interval], color='pink', s=12)
 
     return interval
 
@@ -375,7 +435,38 @@ def find_parabola(r, sb, **kwargs):
     return fit_r*0.396, p(fit_r*0.396)
 
 
+def find_outer(image, centre, **kwargs):
+    """ image = segmentation map with main object == 1"""
 
+    idx_bg = np.where(image != 1)
+    idx_main = np.where(image == 1)
+    image[idx_main] = 100
+    image[idx_bg] = 0
+
+    # plt.figure()
+    # plt.imshow(image, origin='lower')
+    # plt.show()
+
+    r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
+    hist = np.histogram(r, bins=100, density=True)
+    cum_hist = np.cumsum(hist[0])
+    cum_hist = cum_hist/np.amax(cum_hist)
+    idx = np.searchsorted(cum_hist, 0.99)
+    # print(idx)
+    # print(cum_hist)
+    # print(cum_hist_check)
+    r_max = 0.5*(hist[1][1:] + hist[1][:-1])[idx]
+    # print(r_max)
+
+    plt.figure()
+    plt.hist(r, bins=100, density=True)
+    plt.axvline(r_max, color='red', label='$r_{max}$')
+    plt.title(kwargs.get('title'))
+    plt.xlabel('r (pix)')
+    plt.legend()
+    plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
+    plt.show()
+    return r_max
 
 
 
