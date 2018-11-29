@@ -8,13 +8,14 @@ import scipy.signal as signal
 import csv
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_astrofyz.csv')
+# all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_astrofyz.csv')
+all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 
-# path = '../corotation/buta_gal/image'
-# out_path = '/home/mouse13/corotation_code/data/'
+path = '../corotation/buta_gal/image'
+out_path = '/home/mouse13/corotation_code/data/'
 
-path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-out_path = '/media/mouse13/My Passport/corotation_code/data/'
+# path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+# out_path = '/media/mouse13/My Passport/corotation_code/data/'
 
 # print(all_table.columns)
 
@@ -120,7 +121,9 @@ real_mag_i = to_mag(image=real_bg_i, zp=zp_i)
 real_mag_z = to_mag(image=real_bg_z, zp=zp_z)
 
 r_seg_sh = shift(mask_r, [256-y_real, 256-x_real], mode='nearest')
-r_max, r_min = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path)
+petro, petro50 = all_table.loc[all_table.objid14 == int(gal_name), ['petroRad_r', 'petroR50_r']].values[0]
+r_max, r_min, step_FD = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path,
+                                   petro=petro, petro50=petro50)
 r_max = r_max*1.3
 r_min = r_min*1.3
 print('r_max = ', r_max)
@@ -129,7 +132,7 @@ print('r_min = ', r_min)
 eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
                       eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
                       sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
-                      f=3, step=0.4, rmax=r_max, rmin=r_min,
+                      f=3, step=0.4, rmax=r_max, rmin=petro,
                       title=title, figname=gal_name, path=out_path)
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)
@@ -137,28 +140,40 @@ eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
 # eps_i, pa_i = ellipse_fit(cat=i_cat[1].data.T[0], image=i_real[0].data)
 # eps_z, pa_z = ellipse_fit(cat=z_cat[1].data.T[0], image=z_real[0].data)
 
-step = 2.2
+step = step_FD
 
-sma_pix_r, sb_r = calc_sb(real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
-                          f_max=4., eps=eps, rmax=r_max)
-sma_pix_g, sb_g = calc_sb(real_mag_g, g_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
-                          f_max=4., eps=eps, rmax=r_max)
-sma_pix_u, sb_u = calc_sb(real_mag_u, u_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
-                          f_max=4., eps=eps, rmax=r_max)
-sma_pix_i, sb_i = calc_sb(real_mag_i, i_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
-                          f_max=4., eps=eps, rmax=r_max)
-sma_pix_z, sb_z = calc_sb(real_mag_z, z_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0], step=step,
-                          f_max=4., eps=eps, rmax=r_max)
-sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=step, f_max=4., eps=eps, rmax=r_max)
-sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=step, f_max=4., eps=eps, rmax=r_max)
-sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=step, f_max=4., eps=eps, rmax=r_max)
-sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, r_cat[1].data.T[0], angle=pa, sma=r_cat[1].data['A_IMAGE'][0],
-                              step=step, f_max=4., eps=eps, rmax=r_max)
+# sma_pix_r, sb_r = calc_sb(real_mag_r, step=step, rmax=r_max, x=x_real, y=y_real,
+#                           eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
+#                           sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+sma_pix_r, sb_r = calc_sb(real_mag_r, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_g, sb_g = calc_sb(real_mag_g, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_u, sb_u = calc_sb(real_mag_u, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=u_cat[1].data.T[0]['X_IMAGE'], theta=u_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_i, sb_i = calc_sb(real_mag_i, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=i_cat[1].data.T[0]['X_IMAGE'], theta=i_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_z, sb_z = calc_sb(real_mag_z, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=z_cat[1].data.T[0]['X_IMAGE'], theta=z_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+
+sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
+                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
 
 bg_mag = calc_bkg(real_mag_r, mask_r).background_median
+print('number of apertures', len(sb_r))
 
 # mag_max = np.amax(sb_r)
 # mag_min = np.amin(sb_r)
@@ -246,7 +261,7 @@ plt.gca().invert_yaxis()
 plt.title(title)
 plt.legend()
 plt.xlabel('r (arcsec')
-plt.ylabel('$\mu[u,g,r,i] \quad (mag\:arcsec^{-2})$')
+plt.ylabel('$\mu[r] \quad (mag\:arcsec^{-2})$')
 plt.savefig(out_path+'slit/'+gal_name+'_slit.png')
 plt.show()
 
@@ -273,6 +288,7 @@ with open(out_path+'result.csv', 'a', newline='') as csvfile:
 
     res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
     res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
+    res_writer.writerow(['number of apertures : '+str(len(sb_r))])
 
     res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
     res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])

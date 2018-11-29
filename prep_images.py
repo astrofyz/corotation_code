@@ -181,10 +181,9 @@ def ellipse_fit(**kwargs):
         rmin = kwargs.get('rmin')
         geom_inp = EllipseGeometry(x0=x0, y0=y0, sma=rmin, eps=eps0, pa=theta0 * np.pi / 180.)  # initial ellipse
 
-
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
-    aper_inp.plot(color='green', alpha=0.3)  # initial ellipse guess
+    aper_inp.plot(color='red', alpha=0.3)  # initial ellipse guess
 
     # aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), f*geom_inp.sma, f*geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
     #                               geom_inp.pa)
@@ -229,40 +228,22 @@ def ellipse_fit(**kwargs):
     return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
 
 
-def calc_sb(image, cat, **kwargs):
+def calc_sb(image, **kwargs):
     """
     image - image 2D array
     cat - string of catalog (e.g. r_cat[1].data.T[0]
     step - width of elliptical annulus
     f_max - maximal semimajor axis / sma_catalog
     """
-    x0 = cat['X_IMAGE']
-    y0 = cat['Y_IMAGE']
+    x0 = kwargs.get('x')
+    y0 = kwargs.get('y')
+    eps0 = kwargs.get('eps')
+    theta0 = kwargs.get('theta')
 
     if kwargs.get('step'):
         step = kwargs.get('step')
     else:
         step = 5.5
-
-    if kwargs.get('f_max'):
-        f_max = kwargs.get('f_max')
-    else:
-        f_max = 4.
-
-    if kwargs.get('eps'):
-        eps0 = kwargs.get('eps')
-    else:
-        eps0 = np.sqrt(1 - (cat['B_IMAGE'] / cat['A_IMAGE']) ** 2)
-
-    if kwargs.get('theta'):
-        theta0 = kwargs.get('theta')
-    else:
-        theta0 = cat['THETA_IMAGE']
-
-    if kwargs.get('sma'):
-        sma0 = kwargs.get('sma')
-    else:
-        sma0 = cat['A_IMAGE']
 
     a_in = []
     a_out = []
@@ -292,9 +273,11 @@ def calc_sb(image, cat, **kwargs):
         intens = []
         for i in range(num_apers):
             intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
-        #
+
+        # print('number of apertures = ', len(intens))
         return (a_out + a_in) / 2., np.array(intens)
 
+    f_max = 5.
     while a_out[-1] < sma0*f_max:
         a_in.append(a_in[-1]+step)
         a_out.append(a_out[-1]+step)
@@ -313,7 +296,8 @@ def calc_sb(image, cat, **kwargs):
     intens = []
     for i in range(num_apers):
         intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
-#
+
+    # print('number of apertures = ', len(intens))
     return (a_out+a_in)/2., np.array(intens)
 
 
@@ -423,16 +407,16 @@ def find_reg(r, sb, **kwargs):
     # print('max', max_r)
     # print('min', min_r)
 
-    N = 8
-    Wn = 0.05
-    b, a = signal.butter(N, Wn)
-    sb_filt = signal.filtfilt(b, a, sb, padlen=10)
+    # N = 8
+    # Wn = 0.05
+    # b, a = signal.butter(N, Wn)
+    # sb_filt = signal.filtfilt(b, a, sb, padlen=10)
 
     plt.figure()
     plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
     plt.gca().invert_yaxis()
-    plt.scatter(r*0.396, ynew, marker='.', color='salmon', alpha=0.2, label='spline', lw=6)
-    plt.plot(r*0.396, sb_filt, color='deepskyblue', label='filter', linestyle='dashed')
+    plt.scatter(r*0.396, ynew, marker='.', color='salmon', alpha=0.5, label='spline', lw=3)
+    # plt.plot(r*0.396, sb_filt, color='deepskyblue', label='filter', linestyle='dashed')
     # plt.axvline(r[max_r[0]]*0.396, color='blue')
     # plt.axvline(r[min_r[0]]*0.396, color='gold')
     plt.scatter(r[interval]*0.396, sb[interval], color='darkmagenta', s=12)
@@ -469,24 +453,40 @@ def find_outer(image, centre, **kwargs):
     plt.show()
 
     r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
-    hist = np.histogram(r, bins=20, density=True)
+    hist = np.histogram(r, bins=100, density=True)
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
+    rc = 0.5*(hist[1][1:] + hist[1][:-1])
     idx_max = np.searchsorted(cum_hist, 0.95)
     idx_min = np.searchsorted(cum_hist, 0.05)
-    r_max = 0.5*(hist[1][1:] + hist[1][:-1])[idx_max]
-    r_min = 0.5*(hist[1][1:] + hist[1][:-1])[idx_min]
+    idx_q3 = np.searchsorted(cum_hist, 0.75)
+    idx_q1 = np.searchsorted(cum_hist, 0.25)
+    iqr = rc[idx_q3] - rc[idx_q1]
+    r_max = rc[idx_max]
+    r_min = rc[idx_min]
+
+    FD_bin = 2*iqr/(len(r))**(1./3.)
+
+    print('Freedman Diaconis bin = ', FD_bin)
+    print('my width', rc[1]-rc[0])
+    r_edges = np.arange(np.amin(r), np.amax(r), FD_bin)
 
     plt.figure()
-    plt.hist(r, bins=100, density=True)
+    plt.hist(r, bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
+    # plt.hist(r, bins=100, density=True, alpha=0.5, color='lightseagreen')
     plt.axvline(r_max, color='red', label='$r_{max}$')
     plt.axvline(r_min, color='darkorange', label='$r_{min}$')
+    # plt.fill_betweenx(hist[0], rc[idx_q1], rc[idx_q3], color='c', alpha=0.2)
+    if kwargs.get('petro'):
+        plt.axvline(kwargs.get('petro')/0.396, color='indigo', label='petro')
+    if kwargs.get('petro50'):
+        plt.axvline(kwargs.get('petro50')/0.396, color='green', label='petro50')
     plt.title(kwargs.get('title'))
     plt.xlabel('r (pix)')
     plt.legend()
     plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
     plt.show()
-    return r_max, r_min
+    return r_max, r_min, FD_bin
 
 
 
