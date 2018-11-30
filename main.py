@@ -40,7 +40,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587732048403824840'
 # gal_name = '587738946131132437'
 # gal_name = '587736940908511450'
-# gal_name = '587736584429306061'
+gal_name = '587736584429306061'
 # gal_name = '587729150383095831'
 # gal_name = '587729150383161562'
 # gal_name = '587741490893684878'
@@ -53,7 +53,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587726033334632485'
 # gal_name = '587736808298774638'
 # gal_name = '587730021717966911'
-gal_name = '588017990689751059'
+# gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -78,17 +78,6 @@ mask_i = main_obj(cat=i_cat, mask=i_seg[0].data, xy=[x_real, y_real])
 mask_u = main_obj(cat=u_cat, mask=u_seg[0].data, xy=[x_real, y_real])
 mask_z = main_obj(cat=z_cat, mask=z_seg[0].data, xy=[x_real, y_real])
 
-
-# idx_bg = np.where(mask_r != 1)
-# idx_main = np.where(mask_r == 1)
-# new_mask = np.zeros_like(mask_r)
-# new_mask[idx_main] = 100
-#
-# plt.figure()
-# plt.imshow(new_mask, origin='lower')
-# plt.title('mister tykva')
-# plt.show()
-
 giruz_fwhm = []
 max_seeing = max(seeing_giruz)
 for im, fwhm in zip([g_real[0].data, i_real[0].data, r_real[0].data, u_real[0].data, z_real[0].data], seeing_giruz):
@@ -110,9 +99,6 @@ real_bg_g = g_real[0].data - bkg_g.background
 real_bg_u = u_real[0].data - bkg_u.background
 real_bg_i = i_real[0].data - bkg_i.background
 real_bg_z = z_real[0].data - bkg_z.background
-
-vmin = np.amin(abs(real_bg_r))
-vmax = np.amax(abs(real_bg_r))
 
 real_mag_r = to_mag(image=real_bg_r, zp=zp_r)
 real_mag_g = to_mag(image=real_bg_g, zp=zp_g)
@@ -161,27 +147,22 @@ sma_pix_z, sb_z = calc_sb(real_mag_z, step=step, rmax=r_max, x=x_real, y=y_real,
                           sma=z_cat[1].data.T[0]['X_IMAGE'], theta=z_cat[1].data.T[0]['THETA_IMAGE'])
 
 sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
-                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
+                              sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
 
 sma_pix_r_i, sb_r_i = calc_sb(real_mag_r-real_mag_i, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
-                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+                              sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
 
 sma_pix_g_r, sb_g_r = calc_sb(real_mag_g-real_mag_r, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
-                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+                              sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
 
 sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, step=step, rmax=r_max, x=x_real, y=y_real, eps=0.,
-                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
+                              sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
 
 bg_mag = calc_bkg(real_mag_r, mask_r).background_median
 print('number of apertures', len(sb_r))
 
-# mag_max = np.amax(sb_r)
-# mag_min = np.amin(sb_r)
-
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
-# print(mag_max)
-# print(mag_min)
 
 par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name)
 par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
@@ -232,15 +213,11 @@ a_gr.set_ylabel('$g-r$')
 a_ug.plot(sma_pix_u_g*0.396, sb_u_g)
 a_ug.set_ylabel('$u-g$')
 a_ug.set_xlabel('r (arcsec)')
-plt.savefig(out_path+'sb_profile/'+gal_name+'_sb_prof.png')
+# plt.savefig(out_path+'sb_profile/'+gal_name+'_sb_prof.png')
 plt.show()
 
 real_mag_r_sh = shift(real_mag_r, [256-y_real, 256-x_real], mode='nearest')
 
-# rot_r = rotate_and_scale(real_mag_r_sh, angle=pa, sx=1., sy=1.)
-
-vmin_mag = zp_r-2.5*np.log10(vmin/53.907)
-vmax_mag = zp_r-2.5*np.log10(vmax/53.907)
 
 par, per = slit(real_mag_r_sh, .7, 2.5, [256, 256], r_max, pa, title=title, figname=gal_name, path=out_path)
 
@@ -262,41 +239,93 @@ plt.title(title)
 plt.legend()
 plt.xlabel('r (arcsec')
 plt.ylabel('$\mu[r] \quad (mag\:arcsec^{-2})$')
-plt.savefig(out_path+'slit/'+gal_name+'_slit.png')
+# plt.savefig(out_path+'slit/'+gal_name+'_slit.png')
 plt.show()
 
-rot_r = rotate_and_scale(real_mag_r_sh, pa, sx=1., sy=1.)
-
-plt.figure()
-plt.imshow(rot_r, origin='lower', cmap='Greys')
-plt.show()
 
 rot_sca_r = rotate_and_scale(real_mag_r_sh, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 
 plt.figure()
 plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
 plt.title(title)
-plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
+# plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
 plt.show()
 
 
-with open(out_path+'result.csv', 'a', newline='') as csvfile:
-    res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
-    res_writer.writerow(['name : ' + title_name])
-    res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
-    res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
+# with open(out_path+'result.csv', 'a', newline='') as csvfile:
+#     res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+#     res_writer.writerow(['name : ' + title_name])
+#     res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
+#     res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
+#
+#     res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
+#     res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
+#     res_writer.writerow(['number of apertures : '+str(len(sb_r))])
+#
+#     res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
+#     res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
+#     res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
+#     res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
+#     res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
+#                          + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
+#     res_writer.writerow(['....................................................................'])
+#     csvfile.close()
 
-    res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
-    res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
-    res_writer.writerow(['number of apertures : '+str(len(sb_r))])
 
-    res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
-    res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
-    res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
-    res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
-    res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
-                         + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
-    res_writer.writerow(['....................................................................'])
-    csvfile.close()
+# unsharp_mask(real_mag_r_sh)
+
+# len_par = int(len(par[0])/2+1)
+# print(par[0][-len_par:], len(par[0]))
+# grad_par = np.gradient(par_filt[-len_par:], par[0][-len_par:])
+# print(grad_par)
+#
+# plt.figure()
+# plt.plot(par[0][-len_par:]*0.396, grad_par)
+# idx_min = argrelextrema(grad_par, np.less)
+# plt.scatter(par[0][-len_par:][idx_min]*0.396, grad_par[idx_min], color='orange')
+# print(idx_min)
+# print(par[0][-len_par:][idx_min]*0.396)
+# plt.show()
+#
+# plt.figure()
+# plt.scatter(par[0][-len_par:]*0.396, par_filt[-len_par:], color='navy', lw=3)
+#
+# dlt = 3.5
+# for x, y, df in zip(par[0][-len_par:], par_filt[-len_par:], grad_par):
+#     xr = np.linspace(x-dlt, x+dlt, 10)
+#     yr = y + df*(xr-x)
+#     plt.plot(xr*0.396, yr, lw=1, linestyle='dashed', color='orange')
+# plt.scatter(par[0][-len_par:][idx_min]*0.396, par_filt[-len_par:][idx_min], color='red')
+# plt.gca().invert_yaxis()
+# plt.show()
+
+len_per = int(len(per[0])/2+1)
+print(per[0][-len_per:], len(per[0]))
+grad_per = np.gradient(per_filt[-len_per:], par[0][-len_per:])
+grad_grad_per = np.gradient(grad_per, par[0][-len_per:])
+print(grad_per)
+
+plt.figure()
+plt.plot(per[0][-len_per:]*0.396, grad_per)
+plt.plot(per[0][-len_per:]*0.396, grad_grad_per)
+idx_min = argrelextrema(grad_per, np.less)
+idx_max = argrelextrema(grad_per, np.greater)
+plt.scatter(per[0][-len_per:][idx_min]*0.396, grad_per[idx_min], color='orange')
+print(idx_min)
+print(per[0][-len_per:][idx_min]*0.396)
+plt.show()
+
+plt.figure()
+plt.plot(per[0][-len_per:]*0.396, per_filt[-len_per:], color='navy', lw=3, alpha=0.3)
+
+dlt = 3.5
+for x, y, df in zip(per[0][-len_per:], per_filt[-len_per:], grad_per):
+    xr = np.linspace(x-dlt, x+dlt, 10)
+    yr = y + df*(xr-x)
+    # plt.plot(xr*0.396, yr, lw=1, linestyle='dashed', color='orange')
+plt.scatter(per[0][-len_per:][idx_min]*0.396, per_filt[-len_per:][idx_min], color='red')
+plt.scatter(per[0][-len_per:][idx_max]*0.396, per_filt[-len_per:][idx_max], color='lawngreen')
+plt.gca().invert_yaxis()
+plt.show()
 
 

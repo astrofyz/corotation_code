@@ -207,7 +207,7 @@ def ellipse_fit(**kwargs):
         plt.xlabel('x (pix)')
         plt.ylabel('y (pix)')
         plt.title(kwargs.get('title'))
-        plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
+        # plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
         plt.show()
         print('eps =', isolist.eps[-1])
         print('pa =', isolist.pa[-1])
@@ -335,7 +335,7 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     apertures_par.plot(color='green')
     apertures_per.plot(color='red')
     plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
-    plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
+    # plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
     plt.show()
 
     table_par = aperture_photometry(image, apertures_par)
@@ -358,14 +358,14 @@ def unsharp_mask(image, **kwargs):  # пока не работает, забей
     image_med = median_filter(image, size=size)
     plt.figure()
     norm = ImageNormalize(stretch=LogStretch())
-    plt.imshow(image, cmap='Greys_r', origin='lower', norm=norm)
+    plt.imshow(image, cmap='Greys_r', origin='lower') #, norm=norm)
     plt.show()
     plt.figure()
-    plt.imshow(image_med, cmap='Greys_r', origin='lower', norm=norm)
+    plt.imshow(image_med, cmap='Greys_r', origin='lower') #, norm=norm)
     plt.show()
     image_res = gaussian_filter(image-image_med, sigma=2)
     plt.figure()
-    plt.imshow(image_res, cmap='Greys_r', origin='lower', norm=norm)
+    plt.imshow(image_res, cmap='Greys_r', origin='lower') #, norm=norm)
     plt.show()
     return image_res
 
@@ -424,7 +424,7 @@ def find_reg(r, sb, **kwargs):
     plt.xlabel('r (arcsec)')
     plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
     plt.legend()
-    plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
     plt.show()
 
     return interval
@@ -457,7 +457,7 @@ def find_outer(image, centre, **kwargs):
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
     rc = 0.5*(hist[1][1:] + hist[1][:-1])
-    idx_max = np.searchsorted(cum_hist, 0.95)
+    idx_max = np.searchsorted(cum_hist, 0.90)
     idx_min = np.searchsorted(cum_hist, 0.05)
     idx_q3 = np.searchsorted(cum_hist, 0.75)
     idx_q1 = np.searchsorted(cum_hist, 0.25)
@@ -484,7 +484,7 @@ def find_outer(image, centre, **kwargs):
     plt.title(kwargs.get('title'))
     plt.xlabel('r (pix)')
     plt.legend()
-    plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
+    # plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
     plt.show()
     return r_max, r_min, FD_bin
 
