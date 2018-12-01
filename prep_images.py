@@ -388,14 +388,6 @@ def calc_bkg(image, mask, **kwargs):
 
 
 def find_reg(r, sb, **kwargs):
-    if kwargs.get('s'):
-        s = kwargs.get('s')
-    else:
-        s = 0.3
-
-    tck = splrep(r, sb, s=s)
-    ynew = splev(r, tck, der=0)
-
     try:
         max_r = signal.argrelextrema(ynew, np.less)[0]  # magnitude!
         min_r = signal.argrelextrema(ynew, np.greater)[0]
@@ -404,37 +396,41 @@ def find_reg(r, sb, **kwargs):
         print('no interval was found!')
         n = len(r)
         interval = range(int(n/4), int(n/2), 1)
-    # print('max', max_r)
-    # print('min', min_r)
-
-    # N = 8
-    # Wn = 0.05
-    # b, a = signal.butter(N, Wn)
-    # sb_filt = signal.filtfilt(b, a, sb, padlen=10)
-
-    plt.figure()
-    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
-    plt.gca().invert_yaxis()
-    plt.scatter(r*0.396, ynew, marker='.', color='salmon', alpha=0.5, label='spline', lw=3)
-    # plt.plot(r*0.396, sb_filt, color='deepskyblue', label='filter', linestyle='dashed')
-    # plt.axvline(r[max_r[0]]*0.396, color='blue')
-    # plt.axvline(r[min_r[0]]*0.396, color='gold')
-    plt.scatter(r[interval]*0.396, sb[interval], color='darkmagenta', s=12)
-    plt.title(kwargs.get('title'))
-    plt.xlabel('r (arcsec)')
-    plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-    plt.legend()
-    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
-    plt.show()
-
     return interval
 
 
 def find_parabola(r, sb, **kwargs):
-    fit_interval = find_reg(r, sb, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
+    if kwargs.get('s'):
+        s = kwargs.get('s')
+    else:
+        s = 0.3
+
+    tck = splrep(r, sb, s=s)
+    ynew = splev(r, tck, der=0)
+
+    plt.figure()
+    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
+
+    if kwargs.get('grad'):
+        fit_interval, approx_min = interval_grad(r, ynew)
+        print('approx min from gradient analysis = ', r[approx_min]*0.396)
+        plt.scatter(r[approx_min] * 0.396, sb[approx_min], color='darkmagenta', s=12, label='approx min')
+    else:
+        fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
+
     fit_r = r[fit_interval]
     fit_sb = sb[fit_interval]
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
+
+    plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
+    plt.plot(r*0.396, ynew, color='darkmagenta', alpha=0.4, lw=3)
+    # plt.title(kwargs.get('title'))
+    plt.xlabel('r (arcsec)')
+    plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+    plt.legend()
+    plt.gca().invert_yaxis()
+    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    plt.show()
 
     return fit_r*0.396, p(fit_r*0.396)
 
@@ -489,6 +485,22 @@ def find_outer(image, centre, **kwargs):
     return r_max, r_min, FD_bin
 
 
+def interval_grad(x, filt):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости
+    grad = np.gradient(filt, x)
+    grad2 = np.gradient(grad, x)
+
+    idx_grad2_min = signal.argrelextrema(grad2, np.less)
+    print(idx_min)
+    idx0 = np.sort(np.concatenate([signal.argrelextrema(grad2, np.less)[0], signal.argrelextrema(grad2, np.greater)[0]]))
+    print(idx0)
+
+    interval = np.arange(idx0[0], idx0[1], 1)
+    plt.figure()
+    plt.plot(x*0.396, grad)
+    plt.plot(x*0.396, grad2)
+    plt.show()
+
+    return interval, idx_min[0][0]
 
 
 

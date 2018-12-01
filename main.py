@@ -164,7 +164,7 @@ print('number of apertures', len(sb_r))
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name)
+par_r = find_parabola(sma_pix_r, sb_r, s=0.05, path=out_path, figname=gal_name, grad=True)
 par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
 par_i = find_parabola(sma_pix_i, sb_i, s=0.1, path=out_path, figname=gal_name)
 par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name)
@@ -298,34 +298,4 @@ plt.show()
 # plt.scatter(par[0][-len_par:][idx_min]*0.396, par_filt[-len_par:][idx_min], color='red')
 # plt.gca().invert_yaxis()
 # plt.show()
-
-len_per = int(len(per[0])/2+1)
-print(per[0][-len_per:], len(per[0]))
-grad_per = np.gradient(per_filt[-len_per:], par[0][-len_per:])
-grad_grad_per = np.gradient(grad_per, par[0][-len_per:])
-print(grad_per)
-
-plt.figure()
-plt.plot(per[0][-len_per:]*0.396, grad_per)
-plt.plot(per[0][-len_per:]*0.396, grad_grad_per)
-idx_min = argrelextrema(grad_per, np.less)
-idx_max = argrelextrema(grad_per, np.greater)
-plt.scatter(per[0][-len_per:][idx_min]*0.396, grad_per[idx_min], color='orange')
-print(idx_min)
-print(per[0][-len_per:][idx_min]*0.396)
-plt.show()
-
-plt.figure()
-plt.plot(per[0][-len_per:]*0.396, per_filt[-len_per:], color='navy', lw=3, alpha=0.3)
-
-dlt = 3.5
-for x, y, df in zip(per[0][-len_per:], per_filt[-len_per:], grad_per):
-    xr = np.linspace(x-dlt, x+dlt, 10)
-    yr = y + df*(xr-x)
-    # plt.plot(xr*0.396, yr, lw=1, linestyle='dashed', color='orange')
-plt.scatter(per[0][-len_per:][idx_min]*0.396, per_filt[-len_per:][idx_min], color='red')
-plt.scatter(per[0][-len_per:][idx_max]*0.396, per_filt[-len_per:][idx_max], color='lawngreen')
-plt.gca().invert_yaxis()
-plt.show()
-
 
