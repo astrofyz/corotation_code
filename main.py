@@ -40,7 +40,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587732048403824840'
 # gal_name = '587738946131132437'
 # gal_name = '587736940908511450'
-gal_name = '587736584429306061'
+# gal_name = '587736584429306061'
 # gal_name = '587729150383095831'
 # gal_name = '587729150383161562'
 # gal_name = '587741490893684878'
@@ -50,7 +50,7 @@ gal_name = '587736584429306061'
 # gal_name = '587729653427142882'
 # gal_name = '588017566556225638'
 # gal_name = '588017702388039685'
-# gal_name = '587726033334632485'
+gal_name = '587726033334632485'
 # gal_name = '587736808298774638'
 # gal_name = '587730021717966911'
 # gal_name = '588017990689751059'
@@ -118,7 +118,7 @@ print('r_min = ', r_min)
 eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
                       eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
                       sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
-                      f=3, step=0.4, rmax=r_max, rmin=petro,
+                      f=3, step=0.4, rmax=r_max, rmin=petro50,
                       title=title, figname=gal_name, path=out_path)
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)

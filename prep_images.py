@@ -453,7 +453,7 @@ def find_outer(image, centre, **kwargs):
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
     rc = 0.5*(hist[1][1:] + hist[1][:-1])
-    idx_max = np.searchsorted(cum_hist, 0.90)
+    idx_max = np.searchsorted(cum_hist, 0.99)
     idx_min = np.searchsorted(cum_hist, 0.05)
     idx_q3 = np.searchsorted(cum_hist, 0.75)
     idx_q1 = np.searchsorted(cum_hist, 0.25)
@@ -489,9 +489,9 @@ def interval_grad(x, filt):  # надо отфильтрованный перп�
     grad = np.gradient(filt, x)
     grad2 = np.gradient(grad, x)
 
-    idx_grad2_min = signal.argrelextrema(grad2, np.less)
+    idx_min = signal.argrelextrema(grad2, np.less)[0]
     print(idx_min)
-    idx0 = np.sort(np.concatenate([signal.argrelextrema(grad2, np.less)[0], signal.argrelextrema(grad2, np.greater)[0]]))
+    idx0 = np.sort(np.concatenate([signal.argrelextrema(grad, np.less)[0], signal.argrelextrema(grad, np.greater)[0]]))
     print(idx0)
 
     interval = np.arange(idx0[0], idx0[1], 1)
@@ -500,7 +500,7 @@ def interval_grad(x, filt):  # надо отфильтрованный перп�
     plt.plot(x*0.396, grad2)
     plt.show()
 
-    return interval, idx_min[0][0]
+    return interval, idx_min[0]
 
 
 
