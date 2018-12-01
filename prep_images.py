@@ -8,7 +8,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 # from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
-from scipy.interpolate import splrep, splev
+from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
 
 
@@ -163,9 +163,9 @@ def ellipse_fit(**kwargs):
     else:
         step = 1.
 
-    plt.figure('r_norm')
+    # plt.figure('r_norm')
     norm = ImageNormalize(stretch=LogStretch())
-    plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
+    # plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
 
     x0 = kwargs.get('x')
     y0 = kwargs.get('y')
@@ -203,12 +203,12 @@ def ellipse_fit(**kwargs):
 
         for iso in isolist:
             x, y, = iso.sampled_coordinates()
-            plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
-        plt.xlabel('x (pix)')
-        plt.ylabel('y (pix)')
-        plt.title(kwargs.get('title'))
+            # plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
+        # plt.xlabel('x (pix)')
+        # plt.ylabel('y (pix)')
+        # plt.title(kwargs.get('title'))
         # plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
-        plt.show()
+        # plt.show()
         print('eps =', isolist.eps[-1])
         print('pa =', isolist.pa[-1])
         # print('sma_max = ', isolist.sma[:])
@@ -219,8 +219,8 @@ def ellipse_fit(**kwargs):
 
     for iso in isolist:
         x, y, = iso.sampled_coordinates()
-        plt.plot(x, y, color='red', lw=1, alpha=0.4)
-    plt.show()
+        # plt.plot(x, y, color='red', lw=1, alpha=0.4)
+    # plt.show()
     print('eps =', isolist.eps[-1])
     print('pa =', isolist.pa[-1])
     # print('sma_max = ', isolist.sma[:])
@@ -356,17 +356,17 @@ def unsharp_mask(image, **kwargs):  # пока не работает, забей
     else:
         size = 10
     image_med = median_filter(image, size=size)
-    plt.figure()
-    norm = ImageNormalize(stretch=LogStretch())
-    plt.imshow(image, cmap='Greys_r', origin='lower') #, norm=norm)
-    plt.show()
-    plt.figure()
-    plt.imshow(image_med, cmap='Greys_r', origin='lower') #, norm=norm)
-    plt.show()
+    # plt.figure()
+    # norm = ImageNormalize(stretch=LogStretch())
+    # plt.imshow(image, cmap='Greys_r', origin='lower') #, norm=norm)
+    # plt.show()
+    # plt.figure()
+    # plt.imshow(image_med, cmap='Greys_r', origin='lower') #, norm=norm)
+    # plt.show()
     image_res = gaussian_filter(image-image_med, sigma=2)
-    plt.figure()
-    plt.imshow(image_res, cmap='Greys_r', origin='lower') #, norm=norm)
-    plt.show()
+    # plt.figure()
+    # plt.imshow(image_res, cmap='Greys_r', origin='lower') #, norm=norm)
+    # plt.show()
     return image_res
 
 
@@ -408,21 +408,47 @@ def find_parabola(r, sb, **kwargs):
     tck = splrep(r, sb, s=s)
     ynew = splev(r, tck, der=0)
 
-    plt.figure()
-    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
+    print(r)
+    print(sb)
+
+    # plt.figure()
+    # # t = np.arange(len(r))
+    # # spl_r = UnivariateSpline(t, r)
+    # # spl_sb = UnivariateSpline(t, sb)
+    # rs = np.linspace(np.amin(r), np.amax(r), 300)
+    # plt.scatter(r*0.396, sb, color='darkorange')
+    # # plt.plot(rs, spl(rs), 'g', lw=3)
+    # spl_r.set_smoothing_factor(0.1)
+    # spl_sb.set_smoothing_factor(0.1)
+    # plt.plot(rs*0.396, spl_sb(rs), 'b', lw=3)
+    # plt.gca().invert_yaxis()
+    # plt.show()
+
+    # dr_dt = spl_r.derivative(1)(t)
+    # d2r_dt2 = spl_r.derivative(2)(t)
+    # dsb_dt = spl_sb.derivative(1)(t)
+    # d2sb_dt2 = spl_sb.derivative(2)(t)
+    # curvature = (dr_dt*d2sb_dt2 - dsb_dt*d2r_dt2) / (dr_dt**2 + dsb_dt**2)**(3./2.)
+    # plt.figure()
+    # plt.plot(r, curvature, label='curvature')
+    # plt.legend()
+    # plt.show()
 
     if kwargs.get('grad'):
-        fit_interval, approx_min = interval_grad(r, ynew)
-        print('approx min from gradient analysis = ', r[approx_min]*0.396)
-        plt.scatter(r[approx_min] * 0.396, sb[approx_min], color='darkmagenta', s=12, label='approx min')
+        approx_min, approx_max = interval_grad(r, ynew)
     else:
         fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
 
-    fit_r = r[fit_interval]
-    fit_sb = sb[fit_interval]
+    plt.figure()
+    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
+    # plt.scatter(tck*0.396, ynew, color='lawngreen', s=4)
+    fit_r = r  # [fit_interval]
+    fit_sb = sb  # [fit_interval]
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
-
-    plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
+    plt.scatter(r[approx_min] * 0.396, sb[approx_min], color='darkmagenta', s=12, label='approx min')
+    plt.scatter(r[approx_max] * 0.396, sb[approx_max], color='cyan', s=12, label='approx max')
+    print('approx min from gradient analysis = ', r[approx_min] * 0.396)
+    # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
     plt.plot(r*0.396, ynew, color='darkmagenta', alpha=0.4, lw=3)
     # plt.title(kwargs.get('title'))
     plt.xlabel('r (arcsec)')
@@ -444,9 +470,9 @@ def find_outer(image, centre, **kwargs):
     image[idx_main] = 100
     image[idx_bg] = 0
 
-    plt.figure()
-    plt.imshow(image, origin='lower')
-    plt.show()
+    # plt.figure()
+    # plt.imshow(image, origin='lower')
+    # plt.show()
 
     r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
     hist = np.histogram(r, bins=100, density=True)
@@ -485,28 +511,118 @@ def find_outer(image, centre, **kwargs):
     return r_max, r_min, FD_bin
 
 
-def interval_grad(x, filt):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости
-    grad = np.gradient(filt, x)
-    grad2 = np.gradient(grad, x)
+def interval_grad(x, y):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости
+    # grad = np.gradient(y, x)
+    # grad2 = np.gradient(grad, x)
+    #
+    # idx_min = signal.argrelextrema(abs(grad2), np.less)[0]
+    # idx_max = signal.argrelextrema(abs(grad2), np.greater)[0]
+    # print('idx_min', idx_min)
+    # print('idx_max', idx_max)
+    # print(abs(grad2)[idx_max])
+    # print('max (idx_max)', np.argmax(abs(grad2)[idx_max]))
+    # print('min (idx_min)', np.argmin(abs(grad2)[idx_min]))
+    # idx0 = np.sort(np.concatenate([signal.argrelextrema(grad, np.less)[0], signal.argrelextrema(grad, np.greater)[0]]))
+    # print(idx0)
 
-    idx_min = signal.argrelextrema(grad2, np.less)[0]
-    print(idx_min)
-    idx0 = np.sort(np.concatenate([signal.argrelextrema(grad, np.less)[0], signal.argrelextrema(grad, np.greater)[0]]))
-    print(idx0)
+    dx_dt = np.gradient(x)
+    dy_dt = np.gradient(y)
+    d2x_dt2 = np.gradient(dx_dt)
+    d2y_dt2 = np.gradient(dy_dt)
 
-    interval = np.arange(idx0[0], idx0[1], 1)
+    curvature = abs(d2x_dt2*dy_dt-dx_dt*d2y_dt2)/(dx_dt**2+dy_dt**2)**(3./2.)
+
+    idx_min = signal.argrelextrema(curvature, np.less)[0]
+    idx_max = signal.argrelextrema(curvature, np.greater)[0]
+    print('max (idx_max)', np.argmax(curvature[idx_max]))
+    print(curvature[idx_max])
+
+    # interval = np.arange(idx0[0], idx0[1], 1)
     plt.figure()
-    plt.plot(x*0.396, grad)
-    plt.plot(x*0.396, grad2)
+    plt.plot(x*0.396, curvature)
+    # plt.plot(x*0.396, abs(grad2))
     plt.show()
 
-    return interval, idx_min[0]
+    return idx_min, idx_max
 
 
 
 
 
 
-
-
-
+# from scipy.interpolate import UnivariateSpline
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from scipy.signal import argrelextrema
+#
+# def curvature_splines(x, y=None, error=0.1):
+#     """Calculate the signed curvature of a 2D curve at each point
+#     using interpolating splines.
+#     Parameters
+#     ----------
+#     x,y: numpy.array(dtype=float) shape (n_points, )
+#          or
+#          y=None and
+#          x is a numpy.array(dtype=complex) shape (n_points, )
+#          In the second case the curve is represented as a np.array
+#          of complex numbers.
+#     error : float
+#         The admisible error when interpolating the splines
+#     Returns
+#     -------
+#     curvature: numpy.array shape (n_points, )
+#     Note: This is 2-3x slower (1.8 ms for 2000 points) than `curvature_gradient`
+#     but more accurate, especially at the borders.
+#     """
+#
+#     # handle list of complex case
+#
+#     t = np.arange(x.shape[0])
+#     std = error * np.ones_like(x)
+#
+#     fx = UnivariateSpline(t, x )
+#     fy = UnivariateSpline(t, y )
+#
+#     fx.set_smoothing_factor(0.05)
+#     fy.set_smoothing_factor(0.05)
+#
+#     plt.figure()
+#     plt.plot(fx(t), fy(t))
+#     # plt.plot(t, fy(t))
+#     plt.gca().invert_yaxis()
+#     plt.show()
+#
+#     xd1 = fx.derivative(1)(t)
+#     xd2 = fx.derivative(2)(t)
+#     yd1 = fy.derivative(1)(t)
+#     yd2 = fy.derivative(2)(t)
+#     curvature = (xd1*yd2 - yd1*xd2) / (xd1**2 + yd2**2)**(3./2.)
+#     return curvature
+#
+# x = np.array([  4.12814093,   6.88023488,   9.63232884,  12.38442279,  15.13651674, 17.8886107 ,  20.64070465,  23.3927986 ,  26.14489256,  28.89698651, 31.64908046,  34.40117442,  37.15326837,  39.90536232,  42.65745628,   45.40955023,  48.16164418,  50.91373813,  53.66583209,  56.41792604,   59.17001999,  61.92211395,  64.6742079 ,  67.42630185,  70.17839581,   72.93048976,  75.68258371,  78.43467767,  81.18677162,  83.93886557,   86.69095953,  89.44305348,  92.19514743,  94.94724139,  97.69933534,  100.45142929, 103.20352325, 105.9556172 , 108.70771115, 111.45980511,  114.21189906, 116.96399301, 119.71608697, 122.46818092, 125.22027487,  127.97236883, 130.72446278, 133.47655673, 136.22865068, 138.98074464,  141.73283859, 144.48493254, 147.2370265 , 149.98912045, 152.7412144, 155.49330836, 158.24540231, 160.99749626])
+#
+# y = np.array([24.4110272,  25.14110872,  25.72375065,  26.23211776,  26.5993287 ,  26.87374244, 27.16651785, 27.37932037 , 27.54916666 , 27.70587155 , 27.87366094 , 28.08635843 , 28.32825804, 28.59554493 , 28.81636457 , 29.06891822 , 29.2762816  , 29.46864802 , 29.60098668, 29.77360514 , 29.83606604 , 29.82895658 , 29.78802839 , 29.75719819, 29.69090145, 29.6326598  , 29.59234152 , 29.54909959 , 29.5062188  , 29.52674621, 29.53586841, 29.60107318 , 29.70048376 , 29.85805755 , 30.0167485  , 30.14000646, 30.29274443, 30.44494945 , 30.58594896 , 30.74893442 , 30.7821162  , 30.90892165, 31.0179353 , 31.13271756 , 31.20981945 , 31.22006418 , 31.31392759 , 31.34501743, 31.37546575, 31.43273591 , 31.47356484 , 31.53842695 , 31.52923484 , 31.58531733, 31.57713761, 31.6175186,  31.60484885, 31.59479447])
+#
+# curvature = curvature_splines(x, y)
+#
+#
+# plt.figure()
+# # plt.plot(x, abs(curvature))
+# plt.plot(x, curvature)
+# idx0 = argrelextrema(abs(curvature), np.less)
+# idx_min = argrelextrema(curvature, np.less)
+# plt.scatter(x[idx0], curvature[idx0], color='red', s=14, label='zero')
+# plt.scatter(x[idx_min], curvature[idx_min], color='green', s=14, label='min')
+# plt.show()
+#
+# plt.figure()
+# plt.plot(x, y, label='real')
+# # plt.plot(fx(t), fy(t), label='smoothed')
+# plt.scatter(x[idx0], y[idx0], color='red', s=14, label='zero')
+# plt.scatter(x[idx_min], y[idx_min], color='green', s=14, label='min')
+# plt.gca().invert_yaxis()
+# plt.legend()
+# plt.show()
+#
+#
+#

@@ -8,19 +8,19 @@ import scipy.signal as signal
 import csv
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-# all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_astrofyz.csv')
-all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+# all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 
-path = '../corotation/buta_gal/image'
-out_path = '/home/mouse13/corotation_code/data/'
+# path = '../corotation/buta_gal/image'
+# out_path = '/home/mouse13/corotation_code/data/'
 
-# path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-# out_path = '/media/mouse13/My Passport/corotation_code/data/'
+path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+out_path = '/media/mouse13/My Passport/corotation_code/data/'
 
 # print(all_table.columns)
 
 # gal_name = '1237651539800293493'
-# gal_name = '588007004191326250'
+gal_name = '588007004191326250'
 # gal_name = '587738618098614323'
 # gal_name = '588010879845531657'
 # gal_name = '587739862562373904'
@@ -50,7 +50,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587729653427142882'
 # gal_name = '588017566556225638'
 # gal_name = '588017702388039685'
-gal_name = '587726033334632485'
+# gal_name = '587726033334632485'
 # gal_name = '587736808298774638'
 # gal_name = '587730021717966911'
 # gal_name = '588017990689751059'
@@ -118,7 +118,7 @@ print('r_min = ', r_min)
 eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
                       eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
                       sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
-                      f=3, step=0.4, rmax=r_max, rmin=petro50,
+                      f=3, step=0.4, rmax=r_max, rmin=petro,
                       title=title, figname=gal_name, path=out_path)
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)
@@ -164,7 +164,7 @@ print('number of apertures', len(sb_r))
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.05, path=out_path, figname=gal_name, grad=True)
+par_r = find_parabola(sma_pix_r, sb_r, s=0.2, path=out_path, figname=gal_name, grad=True)
 par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
 par_i = find_parabola(sma_pix_i, sb_i, s=0.1, path=out_path, figname=gal_name)
 par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name)
@@ -245,11 +245,11 @@ plt.show()
 
 rot_sca_r = rotate_and_scale(real_mag_r_sh, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 
-plt.figure()
-plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
-plt.title(title)
-# plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
-plt.show()
+# plt.figure()
+# plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
+# plt.title(title)
+# # plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
+# plt.show()
 
 
 # with open(out_path+'result.csv', 'a', newline='') as csvfile:
