@@ -8,24 +8,19 @@ import scipy.signal as signal
 import csv
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
-# all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+# all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 
-# path = '../corotation/buta_gal/image'
-# out_path = '/home/mouse13/corotation_code/data/'
+path = '../corotation/buta_gal/image'
+out_path = '/home/mouse13/corotation_code/data/'
 
-path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-out_path = '/media/mouse13/My Passport/corotation_code/data/'
+# path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+# out_path = '/media/mouse13/My Passport/corotation_code/data/'
 
 # print(all_table.columns)
 
 # gal_name = '1237651539800293493'
-gal_name = '588007004191326250'
-# gal_name = '587738618098614323'
-# gal_name = '588010879845531657'
-# gal_name = '587739862562373904'
-# gal_name = '587739848605499583'
-# gal_name = '587739609700040719'
+# gal_name = '588007004191326250'
 # gal_name = '587742551759257682'
 # gal_name = '587732771864182806'
 # gal_name = '587724648720826467'
@@ -33,26 +28,17 @@ gal_name = '588007004191326250'
 # gal_name = '587739707948204093'
 # gal_name = '587735349636300832'
 # gal_name = '588011124118585393'
-# gal_name = '587738947740041304'
 # gal_name = '587737827288809605'
 # gal_name = '587741490906398723'
-# gal_name = '587741490908037216'
-# gal_name = '587732048403824840'
+gal_name = '587732048403824840'
 # gal_name = '587738946131132437'
-# gal_name = '587736940908511450'
 # gal_name = '587736584429306061'
 # gal_name = '587729150383095831'
 # gal_name = '587729150383161562'
 # gal_name = '587741490893684878'
 # gal_name = '587736804008722435'
-# gal_name = '587739608618696777'
-# gal_name = '587729388214222955'
-# gal_name = '587729653427142882'
 # gal_name = '588017566556225638'
-# gal_name = '588017702388039685'
 # gal_name = '587726033334632485'
-# gal_name = '587736808298774638'
-# gal_name = '587730021717966911'
 # gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
@@ -118,7 +104,7 @@ print('r_min = ', r_min)
 eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
                       eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
                       sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
-                      f=3, step=0.4, rmax=r_max, rmin=petro,
+                      f=3, step=0.4, rmax=r_max, rmin=petro50,
                       title=title, figname=gal_name, path=out_path)
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)

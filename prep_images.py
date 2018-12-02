@@ -163,9 +163,9 @@ def ellipse_fit(**kwargs):
     else:
         step = 1.
 
-    # plt.figure('r_norm')
+    plt.figure('r_norm')
     norm = ImageNormalize(stretch=LogStretch())
-    # plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
+    plt.imshow(image, norm=norm, origin='lower', cmap='Greys_r')
 
     x0 = kwargs.get('x')
     y0 = kwargs.get('y')
@@ -204,11 +204,11 @@ def ellipse_fit(**kwargs):
         for iso in isolist:
             x, y, = iso.sampled_coordinates()
             # plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
-        # plt.xlabel('x (pix)')
-        # plt.ylabel('y (pix)')
-        # plt.title(kwargs.get('title'))
-        # plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
-        # plt.show()
+        plt.xlabel('x (pix)')
+        plt.ylabel('y (pix)')
+        plt.title(kwargs.get('title'))
+        plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
+        plt.show()
         print('eps =', isolist.eps[-1])
         print('pa =', isolist.pa[-1])
         # print('sma_max = ', isolist.sma[:])
@@ -408,34 +408,25 @@ def find_parabola(r, sb, **kwargs):
     tck = splrep(r, sb, s=s)
     ynew = splev(r, tck, der=0)
 
-    print(r)
-    print(sb)
+    # print(r)
+    # print(sb)
 
-    # plt.figure()
-    # # t = np.arange(len(r))
-    # # spl_r = UnivariateSpline(t, r)
-    # # spl_sb = UnivariateSpline(t, sb)
-    # rs = np.linspace(np.amin(r), np.amax(r), 300)
-    # plt.scatter(r*0.396, sb, color='darkorange')
-    # # plt.plot(rs, spl(rs), 'g', lw=3)
-    # spl_r.set_smoothing_factor(0.1)
-    # spl_sb.set_smoothing_factor(0.1)
-    # plt.plot(rs*0.396, spl_sb(rs), 'b', lw=3)
-    # plt.gca().invert_yaxis()
-    # plt.show()
+    t = np.arange(len(r))
+    fr = UnivariateSpline(t, r)
+    fsb = UnivariateSpline(t, sb)
+    fr.set_smoothing_factor(0.02)
+    fsb.set_smoothing_factor(0.02)
 
-    # dr_dt = spl_r.derivative(1)(t)
-    # d2r_dt2 = spl_r.derivative(2)(t)
-    # dsb_dt = spl_sb.derivative(1)(t)
-    # d2sb_dt2 = spl_sb.derivative(2)(t)
-    # curvature = (dr_dt*d2sb_dt2 - dsb_dt*d2r_dt2) / (dr_dt**2 + dsb_dt**2)**(3./2.)
-    # plt.figure()
-    # plt.plot(r, curvature, label='curvature')
-    # plt.legend()
-    # plt.show()
 
     if kwargs.get('grad'):
-        approx_min, approx_max = interval_grad(r, ynew)
+        rd1 = fr.derivative(1)(t)
+        rd2 = fr.derivative(2)(t)
+        sbd1 = fsb.derivative(1)(t)
+        sbd2 = fsb.derivative(2)(t)
+        curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
+        idx0 = signal.argrelextrema(abs(curvature), np.less)
+        idx_min = signal.argrelextrema(curvature, np.less)
+        # approx_min, approx_max = interval_grad(r, ynew)
     else:
         fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
 
@@ -445,11 +436,11 @@ def find_parabola(r, sb, **kwargs):
     fit_r = r  # [fit_interval]
     fit_sb = sb  # [fit_interval]
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
-    plt.scatter(r[approx_min] * 0.396, sb[approx_min], color='darkmagenta', s=12, label='approx min')
-    plt.scatter(r[approx_max] * 0.396, sb[approx_max], color='cyan', s=12, label='approx max')
-    print('approx min from gradient analysis = ', r[approx_min] * 0.396)
+    plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='zero curvature')
+    plt.scatter(r[idx_min] * 0.396, sb[idx_min], color='cyan', s=12, label='max negative curvature')
+    # print('approx min from gradient analysis = ', r[approx_min] * 0.396)
     # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
-    plt.plot(r*0.396, ynew, color='darkmagenta', alpha=0.4, lw=3)
+    plt.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.4, lw=3)
     # plt.title(kwargs.get('title'))
     plt.xlabel('r (arcsec)')
     plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
@@ -479,7 +470,7 @@ def find_outer(image, centre, **kwargs):
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
     rc = 0.5*(hist[1][1:] + hist[1][:-1])
-    idx_max = np.searchsorted(cum_hist, 0.99)
+    idx_max = np.searchsorted(cum_hist, 0.85)
     idx_min = np.searchsorted(cum_hist, 0.05)
     idx_q3 = np.searchsorted(cum_hist, 0.75)
     idx_q1 = np.searchsorted(cum_hist, 0.25)
@@ -512,18 +503,6 @@ def find_outer(image, centre, **kwargs):
 
 
 def interval_grad(x, y):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости
-    # grad = np.gradient(y, x)
-    # grad2 = np.gradient(grad, x)
-    #
-    # idx_min = signal.argrelextrema(abs(grad2), np.less)[0]
-    # idx_max = signal.argrelextrema(abs(grad2), np.greater)[0]
-    # print('idx_min', idx_min)
-    # print('idx_max', idx_max)
-    # print(abs(grad2)[idx_max])
-    # print('max (idx_max)', np.argmax(abs(grad2)[idx_max]))
-    # print('min (idx_min)', np.argmin(abs(grad2)[idx_min]))
-    # idx0 = np.sort(np.concatenate([signal.argrelextrema(grad, np.less)[0], signal.argrelextrema(grad, np.greater)[0]]))
-    # print(idx0)
 
     dx_dt = np.gradient(x)
     dy_dt = np.gradient(y)
