@@ -43,6 +43,7 @@ def read_images(name, **kwargs):
             else:
                 fname = '/'.join([path, band, 'stamps128', band+name+'.fits'])
             images.append(fits.open(fname))
+            fits.open(fname).close()
     return images
 
 
@@ -181,27 +182,31 @@ def ellipse_fit(**kwargs):
 
     ellipse = Ellipse(image, geom_inp)
 
-    maxsma = kwargs.get('rmax')
+    if kwargs.get('rmax'):
+        maxsma = kwargs.get('rmax')
 
-    aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
-                                      maxsma * np.sqrt(1 - geom_inp.eps ** 2),
-                                      geom_inp.pa)
-    aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
+        aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
+                                          maxsma * np.sqrt(1 - geom_inp.eps ** 2),
+                                          geom_inp.pa)
+        aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
 
-    try:
-        warnings.simplefilter("error")
-        isolist = ellipse.fit_image(step=step, maxsma=maxsma)
-    except:
-        print("No meaningful fit was possible")
-        return -1
+        try:
+            warnings.simplefilter("error")
+            isolist = ellipse.fit_image(step=step, maxsma=maxsma)
+        except:
+            print("No meaningful fit was possible")
+            return -1
+
+    if kwargs.get('fflag'):
+        isolist = ellipse.fit_image(step=step, maxgerr=kwargs.get('fflag'))
 
     for iso in isolist:
         x, y, = iso.sampled_coordinates()
         plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
-    plt.xlabel('x (pix)')
-    plt.ylabel('y (pix)')
+        plt.xlabel('x (pix)')
+        plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
-    plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
+    # plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
     plt.show()
     print('eps =', isolist.eps[-1])
     print('pa =', isolist.pa[-1])
@@ -441,12 +446,12 @@ def find_outer(image, centre, **kwargs):
     # print('find_outer centre', centre)
     idx_bg = np.where(image != 1)
     idx_main = np.where(image == 1)
-    image[idx_main] = 100
-    image[idx_bg] = 0
+    image[idx_main] = 0
+    image[idx_bg] = 1
 
-    # plt.figure()
-    # plt.imshow(image, origin='lower')
-    # plt.show()
+    plt.figure()
+    plt.imshow(image, origin='lower')
+    plt.show()
 
     r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
     hist = np.histogram(r, bins=100, density=True)
@@ -460,12 +465,13 @@ def find_outer(image, centre, **kwargs):
     idx_q2 = np.searchsorted(cum_hist, 0.5)
     idx_limit = signal.argrelextrema(hist[0][idx_q3:], np.less)[0][0]+idx_q3
     print(idx_limit)
-    noise = np.amax(hist[0][idx_limit:])
+    # noise = np.amax(hist[0][idx_limit:])
+    noise = 0.0007
     print('noise = ', noise)
-    try:
-        r_max = rc[np.where(hist[0] > noise)][-1]
-    except:
-        r_max = rc[np.searchsorted(cum_hist, 0.92)]
+    # try:
+    #     r_max = rc[np.where(hist[0] > noise and rc < rc[idx_limit])][-1]
+    # except:
+    r_max = rc[np.searchsorted(cum_hist, 0.90)]
     # print('noise level', noise)
     # print('searchsorted noise level', np.searchsorted(hist[0], noise))
     # print('above noise ', np.where(hist[0] > noise))
@@ -500,7 +506,7 @@ def find_outer(image, centre, **kwargs):
     plt.legend()
     # plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
     plt.show()
-    return r_max, r_min, FD_bin
+    return r_max, r_min, FD_bin, image
 
 
 def interval_grad(x, y):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости

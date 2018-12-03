@@ -8,21 +8,21 @@ import scipy.signal as signal
 import csv
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-# all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
-all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+# all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 
-path = '../corotation/buta_gal/image'
-out_path = '/home/mouse13/corotation_code/data/'
+# path = '../corotation/buta_gal/image'
+# out_path = '/home/mouse13/corotation_code/data/'
 
-# path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-# out_path = '/media/mouse13/My Passport/corotation_code/data/'
+path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+out_path = '/media/mouse13/My Passport/corotation_code/data/'
 
 # print(all_table.columns)
 
 # gal_name = '1237651539800293493'
 # gal_name = '588007004191326250'
 # gal_name = '587742551759257682'
-# gal_name = '587732771864182806'
+gal_name = '587732771864182806'
 # gal_name = '587724648720826467'
 # gal_name = '588848898849112176'
 # gal_name = '587739707948204093'
@@ -39,7 +39,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587736804008722435'
 # gal_name = '588017566556225638'
 # gal_name = '587726033334632485'
-gal_name = '588017990689751059'
+# gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -94,7 +94,7 @@ real_mag_z = to_mag(image=real_bg_z, zp=zp_z)
 
 r_seg_sh = shift(mask_r, [256-y_real, 256-x_real], mode='nearest')
 petro, petro50 = all_table.loc[all_table.objid14 == int(gal_name), ['petroRad_r', 'petroR50_r']].values[0]
-r_max, r_min, step_FD = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path,
+r_max, r_min, step_FD, mask_for_fit = find_outer(r_seg_sh, [256, 256], title=title, figname=gal_name, path=out_path,
                                    petro=petro, petro50=petro50)
 r_max = r_max*1.3
 r_min = r_min*1.3
@@ -104,10 +104,14 @@ print('r_min = ', r_min)
 eps = 0
 pa = np.pi
 
+import numpy.ma as ma
+
+r_real_sh = shift(r_real[0].data, [256-y_real, 256-x_real], mode='nearest')
+image_for_fit = ma.masked_array(r_real_sh, mask=mask_for_fit)
 try:  # нужен ли step?
-    eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
+    eps, pa = ellipse_fit(image=r_real_sh, x=256, y=256, fflag=0.1,
                           eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
-                          theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.4, rmax=r_max, rmin=petro,
+                          theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.25, maxgerr=0.7, rmin=petro,
                           title=title, figname=gal_name, path=out_path)
 except:
     try:
@@ -250,8 +254,8 @@ rot_sca_r = rotate_and_scale(real_mag_r_sh, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 # plt.show()
 
 print('hey')
-with open(out_path+'FD_bin.csv', 'a', newline='') as csvfile:
-    res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+# with open(out_path+'FD_bin.csv', 'a', newline='') as csvfile:
+#     res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
     # res_writer.writerow(['name : ' + title_name])
     # res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
     # res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
@@ -267,8 +271,8 @@ with open(out_path+'FD_bin.csv', 'a', newline='') as csvfile:
     # res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
     #                      + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
     # res_writer.writerow(['....................................................................'])
-    res_writer.writerow([title_name, str(step_FD)])
-    csvfile.close()
+    # res_writer.writerow([title_name, str(step_FD)])
+    # csvfile.close()
 
 
 # unsharp_mask(real_mag_r_sh)
