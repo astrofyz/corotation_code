@@ -30,7 +30,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '588011124118585393'
 # gal_name = '587737827288809605'
 # gal_name = '587741490906398723'
-gal_name = '587732048403824840'
+# gal_name = '587732048403824840'
 # gal_name = '587738946131132437'
 # gal_name = '587736584429306061'
 # gal_name = '587729150383095831'
@@ -39,7 +39,7 @@ gal_name = '587732048403824840'
 # gal_name = '587736804008722435'
 # gal_name = '588017566556225638'
 # gal_name = '587726033334632485'
-# gal_name = '588017990689751059'
+gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -101,11 +101,23 @@ r_min = r_min*1.3
 print('r_max = ', r_max)
 print('r_min = ', r_min)
 
-eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
-                      eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
-                      sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
-                      f=3, step=0.4, rmax=r_max, rmin=petro50,
-                      title=title, figname=gal_name, path=out_path)
+eps = 0
+pa = np.pi
+
+try:  # нужен ли step?
+    eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
+                          eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
+                          theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.4, rmax=r_max, rmin=petro,
+                          title=title, figname=gal_name, path=out_path)
+except:
+    try:
+        eps, pa = ellipse_fit(image=r_real[0].data, x=x_real, y=y_real,
+                              eps=np.sqrt(1 - (r_cat[1].data.T[0]['B_IMAGE'] / r_cat[1].data.T[0]['A_IMAGE']) ** 2),
+                              theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.4, rmax=r_max, rmin=petro50,
+                              title=title, figname=gal_name, path=out_path)
+    except:
+        print('No fit neither with petroRad nor petro50')
+        # здесь должна быть ошибка
 
 # eps_g, pa_g = ellipse_fit(cat=g_cat[1].data.T[0], image=g_real[0].data)
 # eps_u, pa_u = ellipse_fit(cat=u_cat[1].data.T[0], image=u_real[0].data)
@@ -150,38 +162,38 @@ print('number of apertures', len(sb_r))
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.2, path=out_path, figname=gal_name, grad=True)
-par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
-par_i = find_parabola(sma_pix_i, sb_i, s=0.1, path=out_path, figname=gal_name)
-par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name)
-
-rad_r = par_r[0][np.argmax(par_r[1])]
-rad_g = par_g[0][np.argmax(par_g[1])]
-rad_i = par_i[0][np.argmax(par_i[1])]
-rad_z = par_z[0][np.argmax(par_z[1])]
-
-print('radii ', rad_r, rad_g, rad_i, rad_z)
+# par_r = find_parabola(sma_pix_r, sb_r, s=0.2, path=out_path, figname=gal_name, grad=True)
+# par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name)
+# par_i = find_parabola(sma_pix_i, sb_i, s=0.1, path=out_path, figname=gal_name)
+# par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name)
+#
+# rad_r = par_r[0][np.argmax(par_r[1])]
+# rad_g = par_g[0][np.argmax(par_g[1])]
+# rad_i = par_i[0][np.argmax(par_i[1])]
+# rad_z = par_z[0][np.argmax(par_z[1])]
+#
+# print('radii ', rad_r, rad_g, rad_i, rad_z)
 
 f, (a_all, a_gi, a_ri, a_gr, a_ug) = plt.subplots(5, 1, gridspec_kw={'height_ratios': [8, 1, 1, 1, 1]}, sharex=True,
                                                   figsize=(8, 10))
 
 a_all.set_title(title)
 
-a_all.plot(sma_pix_r*0.396, sb_r, label='r  '+str(np.round(rad_r, 3)), color='red')
-a_all.plot(sma_pix_g*0.396, sb_g, label='g  '+str(np.round(rad_g, 3)), color='blue')
-a_all.plot(sma_pix_i*0.396, sb_i, label='i  '+str(np.round(rad_i, 3)), color='gold')
-a_all.plot(sma_pix_z*0.396, sb_z, label='z  '+str(np.round(rad_z, 3)), color='g')
+# a_all.plot(sma_pix_r*0.396, sb_r, label='r  '+str(np.round(rad_r, 3)), color='red')
+# a_all.plot(sma_pix_g*0.396, sb_g, label='g  '+str(np.round(rad_g, 3)), color='blue')
+# a_all.plot(sma_pix_i*0.396, sb_i, label='i  '+str(np.round(rad_i, 3)), color='gold')
+# a_all.plot(sma_pix_z*0.396, sb_z, label='z  '+str(np.round(rad_z, 3)), color='g')
 a_all.plot(sma_pix_u*0.396, sb_u, label='u', color='m')
 
-a_all.plot(par_r[0], par_r[1], color='k')
-a_all.plot(par_g[0], par_g[1], color='k')
-a_all.plot(par_z[0], par_z[1], color='k')
-a_all.plot(par_i[0], par_i[1], color='k')
-
-a_all.axvline(par_r[0][np.argmax(par_r[1])], color='maroon')
-a_all.axvline(par_g[0][np.argmax(par_g[1])], color='navy')
-a_all.axvline(par_i[0][np.argmax(par_i[1])], color='sienna')
-a_all.axvline(par_z[0][np.argmax(par_z[1])], color='darkgreen')
+# a_all.plot(par_r[0], par_r[1], color='k')
+# a_all.plot(par_g[0], par_g[1], color='k')
+# a_all.plot(par_z[0], par_z[1], color='k')
+# a_all.plot(par_i[0], par_i[1], color='k')
+#
+# a_all.axvline(par_r[0][np.argmax(par_r[1])], color='maroon')
+# a_all.axvline(par_g[0][np.argmax(par_g[1])], color='navy')
+# a_all.axvline(par_i[0][np.argmax(par_i[1])], color='sienna')
+# a_all.axvline(par_z[0][np.argmax(par_z[1])], color='darkgreen')
 
 a_all.set_ylim(mag_max, mag_min)
 a_all.legend()
@@ -237,25 +249,26 @@ rot_sca_r = rotate_and_scale(real_mag_r_sh, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 # # plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
 # plt.show()
 
-
-# with open(out_path+'result.csv', 'a', newline='') as csvfile:
-#     res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
-#     res_writer.writerow(['name : ' + title_name])
-#     res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
-#     res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
-#
-#     res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
-#     res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
-#     res_writer.writerow(['number of apertures : '+str(len(sb_r))])
-#
-#     res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
-#     res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
-#     res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
-#     res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
-#     res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
-#                          + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
-#     res_writer.writerow(['....................................................................'])
-#     csvfile.close()
+print('hey')
+with open(out_path+'FD_bin.csv', 'a', newline='') as csvfile:
+    res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+    # res_writer.writerow(['name : ' + title_name])
+    # res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
+    # res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
+    #
+    # res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
+    # res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
+    # res_writer.writerow(['number of apertures : '+str(len(sb_r))])
+    #
+    # res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
+    # res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
+    # res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
+    # res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
+    # res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
+    #                      + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
+    # res_writer.writerow(['....................................................................'])
+    res_writer.writerow([title_name, str(step_FD)])
+    csvfile.close()
 
 
 # unsharp_mask(real_mag_r_sh)
