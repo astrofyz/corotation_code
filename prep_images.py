@@ -133,7 +133,7 @@ def zeropoint(**kwargs):
         a = table.loc[table.objid14 == int(name), ['aa_'+band for band in bands]].values[0]
         k = table.loc[table.objid14 == int(name), ['kk_' + band for band in bands]].values[0]
         x = table.loc[table.objid14 == int(name), ['airmass_' + band for band in bands]].values[0]
-        zp[i, :] = -(a + k*x) + 2.5*np.log10(Apix*t)
+        zp[i, :] = -(a + k*x) + 2.5*np.log10(Apix)
         i += 1
     return zp
 
@@ -207,7 +207,7 @@ def ellipse_fit(**kwargs):
         plt.xlabel('x (pix)')
         plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
-    # plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
+    plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
     plt.show()
     print('eps =', isolist.eps[-1])
     print('pa =', isolist.pa[-1])
@@ -434,7 +434,7 @@ def find_parabola(r, sb, **kwargs):
     plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='zero curvature')
     plt.scatter(r[idx_min] * 0.396, sb[idx_min], color='cyan', s=12, label='max negative curvature')
     plt.plot(fit_r*0.396, p(fit_r*0.396), color='k')
-    plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
+    # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
     plt.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.4, lw=3)
     plt.axvline(0.396*fit_r[np.argmax(p(fit_r*0.396))], color='k')
     # print(fit_r*0.396)

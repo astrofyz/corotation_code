@@ -28,7 +28,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '588848898849112176'
 # gal_name = '587739707948204093'
 # gal_name = '587735349636300832'
-# gal_name = '588011124118585393'
+gal_name = '588011124118585393'
 # gal_name = '587737827288809605'
 # gal_name = '587741490906398723'
 # gal_name = '587732048403824840'
@@ -40,7 +40,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '587736804008722435'
 # gal_name = '588017566556225638'
 # gal_name = '587726033334632485'
-gal_name = '588017990689751059'
+# gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
