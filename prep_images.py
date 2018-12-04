@@ -75,14 +75,14 @@ def main_obj(cat, mask, **kwargs):
     idx = (id_x & id_y) + 1
 
     if idx != 1:
-        r_seg_new = np.zeros_like(mask)
-        r_seg_new[:, :] = mask[:, :]
-        idxs_real = np.where(mask == idx)
-        idxs_fake = np.where(mask == 1)
-        r_seg_new[idxs_fake] = idx + 1
-        r_seg_new[idxs_real] = 1
-        return r_seg_new
+        idxs_real = mask == idx
+        mask[~idxs_real] = 0
+        mask[idxs_real] = 1
+        return mask
     else:
+        idxs_real = mask == 1
+        mask[idxs_real] = 1
+        mask[~idxs_real] = 0
         return mask
 
 
@@ -154,7 +154,7 @@ def ellipse_fit(**kwargs):
     """kwargs:
     image - image 2D array
     step - step between fitting ellipses (default = 0.1)
-    f - initial sma = sma_catalog / f (default = 5)"""
+    """
 
     image = kwargs.get('image')
 
@@ -186,8 +186,8 @@ def ellipse_fit(**kwargs):
         maxsma = kwargs.get('rmax')
 
         aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
-                                          maxsma * np.sqrt(1 - geom_inp.eps ** 2),
-                                          geom_inp.pa)
+                                      maxsma * np.sqrt(1 - geom_inp.eps ** 2),
+                                      geom_inp.pa)
         aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
 
         try:
@@ -198,11 +198,12 @@ def ellipse_fit(**kwargs):
             return -1
 
     if kwargs.get('fflag'):
-        isolist = ellipse.fit_image(step=step, maxgerr=kwargs.get('fflag'))
+        warnings.simplefilter("error")
+        isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
 
     for iso in isolist:
         x, y, = iso.sampled_coordinates()
-        plt.plot(x, y, color='cyan', lw=1, alpha=0.2)
+        plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
         plt.xlabel('x (pix)')
         plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
@@ -219,7 +220,6 @@ def ellipse_fit(**kwargs):
 def calc_sb(image, **kwargs):
     """
     image - image 2D array
-    cat - string of catalog (e.g. r_cat[1].data.T[0]
     step - width of elliptical annulus
     f_max - maximal semimajor axis / sma_catalog
     """
@@ -323,7 +323,7 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     apertures_par.plot(color='green')
     apertures_per.plot(color='red')
     plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
-    # plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
+    plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
     plt.show()
 
     table_par = aperture_photometry(image, apertures_par)
@@ -375,7 +375,7 @@ def calc_bkg(image, mask, **kwargs):
     return bkg
 
 
-def find_reg(r, sb, **kwargs):
+def find_reg(r, ynew, **kwargs):
     try:
         max_r = signal.argrelextrema(ynew, np.less)[0]  # magnitude!
         min_r = signal.argrelextrema(ynew, np.greater)[0]
@@ -402,9 +402,8 @@ def find_parabola(r, sb, **kwargs):
     t = np.arange(len(r))
     fr = UnivariateSpline(t, r)
     fsb = UnivariateSpline(t, sb)
-    fr.set_smoothing_factor(0.05)
-    fsb.set_smoothing_factor(0.05)
-
+    fr.set_smoothing_factor(kwargs.get('smooth'))
+    fsb.set_smoothing_factor(kwargs.get('smooth'))
 
     if kwargs.get('grad'):
         rd1 = fr.derivative(1)(t)
@@ -412,8 +411,18 @@ def find_parabola(r, sb, **kwargs):
         sbd1 = fsb.derivative(1)(t)
         sbd2 = fsb.derivative(2)(t)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-        idx0 = signal.argrelextrema(abs(curvature), np.less)
-        idx_min = signal.argrelextrema(curvature, np.less)
+        idx0 = signal.argrelextrema(abs(curvature), np.less)[0]
+        idx_min = signal.argrelextrema(curvature, np.less)[0]
+        idx = np.searchsorted(idx0, idx_min[0])
+        if idx > 0:
+            fit_interval = np.arange(idx0[idx-1], idx0[idx], 1)
+            fit_r = r[fit_interval]
+            fit_sb = sb[fit_interval]
+        else:
+            fit_interval = np.arange(2*idx_min[0]-idx0[0], idx0[0], 1)
+            fit_r = r[fit_interval]
+            fit_sb = sb[fit_interval]
+        # print(fit_interval)
         # approx_min, approx_max = interval_grad(r, ynew)
     else:
         fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
@@ -421,20 +430,21 @@ def find_parabola(r, sb, **kwargs):
     plt.figure()
     plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
     # plt.scatter(tck*0.396, ynew, color='lawngreen', s=4)
-    fit_r = r  # [fit_interval]
-    fit_sb = sb  # [fit_interval]
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
     plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='zero curvature')
     plt.scatter(r[idx_min] * 0.396, sb[idx_min], color='cyan', s=12, label='max negative curvature')
-    # print('approx min from gradient analysis = ', r[approx_min] * 0.396)
-    # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
+    plt.plot(fit_r*0.396, p(fit_r*0.396), color='k')
+    plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
     plt.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.4, lw=3)
+    plt.axvline(0.396*fit_r[np.argmax(p(fit_r*0.396))], color='k')
+    # print(fit_r*0.396)
+    # print(p(fit_r*0.396))
     # plt.title(kwargs.get('title'))
     plt.xlabel('r (arcsec)')
     plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
     plt.legend()
     plt.gca().invert_yaxis()
-    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
     plt.show()
 
     return fit_r*0.396, p(fit_r*0.396)
@@ -443,14 +453,13 @@ def find_parabola(r, sb, **kwargs):
 def find_outer(image, centre, **kwargs):
     """ image = segmentation map with main object == 1"""
 
-    # print('find_outer centre', centre)
-    idx_bg = np.where(image != 1)
     idx_main = np.where(image == 1)
-    image[idx_main] = 0
-    image[idx_bg] = 1
+    # print(idx_main)
 
     plt.figure()
+    plt.title(kwargs.get('title'))
     plt.imshow(image, origin='lower')
+    plt.savefig(kwargs.get('path')+'seg_map/'+kwargs.get('figname')+'_mask.png')
     plt.show()
 
     r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
@@ -458,45 +467,25 @@ def find_outer(image, centre, **kwargs):
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
     rc = 0.5*(hist[1][1:] + hist[1][:-1])
-    # idx_max = np.searchsorted(cum_hist, 0.85)
+    idx_max = np.searchsorted(cum_hist, 0.99)
     idx_min = np.searchsorted(cum_hist, 0.05)
     idx_q3 = np.searchsorted(cum_hist, 0.75)
     idx_q1 = np.searchsorted(cum_hist, 0.25)
-    idx_q2 = np.searchsorted(cum_hist, 0.5)
-    idx_limit = signal.argrelextrema(hist[0][idx_q3:], np.less)[0][0]+idx_q3
-    print(idx_limit)
-    # noise = np.amax(hist[0][idx_limit:])
-    noise = 0.0007
-    print('noise = ', noise)
-    # try:
-    #     r_max = rc[np.where(hist[0] > noise and rc < rc[idx_limit])][-1]
-    # except:
-    r_max = rc[np.searchsorted(cum_hist, 0.90)]
-    # print('noise level', noise)
-    # print('searchsorted noise level', np.searchsorted(hist[0], noise))
-    # print('above noise ', np.where(hist[0] > noise))
-    # print('last r above noise', rc[np.where(hist[0] > noise)][-1])
-    # print(rc[np.searchsorted(hist[0], noise)])
-    # print('min hist[0]', np.argmin(hist[0][idx_q2:])+idx_q2)
-    # print(rc[np.argmin(hist[0][idx_q2:])+idx_q2])
-    # print(rc[idx_q2:][np.argmin(hist[0][idx_q2:])])
     iqr = rc[idx_q3] - rc[idx_q1]
-    # r_max = rc[idx_max]
+    r_max = rc[idx_max]
     r_min = rc[idx_min]
 
     FD_bin = 2*iqr/(len(r))**(1./3.)  # лол кек, q1, q2, q3 ты находишь из рандомной гистограммы ¯\_(ツ)_/¯
 
     print('Freedman Diaconis bin = ', FD_bin)
-    # print('my width', rc[1]-rc[0])
     r_edges = np.arange(np.amin(r), np.amax(r), FD_bin)
 
     plt.figure()
     plt.hist(r, bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
+    # plt.hist(r, bins=100, density=True, alpha=0.5, color='b')
     plt.axvline(r_max, color='red', label='$r_{max}$')
     plt.axvline(r_min, color='darkorange', label='$r_{min}$')
-    plt.axvline(rc[idx_limit], color='k', linestyle='dashed')
 
-    plt.axhline(noise, color='k')
     if kwargs.get('petro'):
         plt.axvline(kwargs.get('petro')/0.396, color='indigo', label='petro')
     if kwargs.get('petro50'):
@@ -504,9 +493,9 @@ def find_outer(image, centre, **kwargs):
     plt.title(kwargs.get('title'))
     plt.xlabel('r (pix)')
     plt.legend()
-    # plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
+    plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
     plt.show()
-    return r_max, r_min, FD_bin, image
+    return r_max, r_min, FD_bin
 
 
 def interval_grad(x, y):  # надо отфильтрованный перпендикуляр или сглаженную кривую яркости
