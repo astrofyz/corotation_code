@@ -8,6 +8,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 # from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
+from photutils.utils import calc_total_error
 from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
 import warnings
@@ -20,17 +21,17 @@ def read_images(name, **kwargs):
     type - obj, aper, cat, seg, real
     band - g, i, r, u, z"""
     dict_type = {'obj': 'objects', 'aper': 'apertures', 'cat': 'catalog', 'seg': 'segmentation'}
-    if kwargs.get('path'):
+    if 'path' in kwargs:
         path = kwargs.get('path')
     else:
         path = '/home/mouse13/corotation/clear_outer'
 
-    if kwargs.get('band'):
+    if 'band' in kwargs:
         bands = kwargs.get('band')
     else:
         bands = ['r', 'g']
 
-    if kwargs.get('type'):
+    if 'type' in kwargs:
         types = kwargs.get('type')
     else:
         types = ['cat', 'obj']
@@ -56,9 +57,9 @@ def main_obj(cat, mask, **kwargs):
 
     # w = wcs.WCS(real[0].header)
     # ra_real, dec_real = table.loc[all_table.objid14 == int(name), ['ra', 'dec']].values[0]
-    if kwargs.get('xy'):
+    if 'xy' in kwargs:
         x_real, y_real = kwargs.get('xy')
-    elif kwargs.get('radec'):
+    elif 'radec' in kwargs:
         ra_real, dec_real = kwargs.get('radec')
         w = kwargs.get('wcs')
         x_real, y_real = w.wcs_world2pix(ra_real, dec_real, 1)
@@ -158,7 +159,7 @@ def ellipse_fit(**kwargs):
 
     image = kwargs.get('image')
 
-    if kwargs.get('step'):
+    if 'step' in kwargs:
         step = kwargs.get('step')
     else:
         step = 1.
@@ -182,7 +183,7 @@ def ellipse_fit(**kwargs):
 
     ellipse = Ellipse(image, geom_inp)
 
-    if kwargs.get('rmax'):
+    if 'rmax' in kwargs:
         maxsma = kwargs.get('rmax')
 
         aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
@@ -191,14 +192,14 @@ def ellipse_fit(**kwargs):
         aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
 
         try:
-            warnings.simplefilter("error")
+            # warnings.simplefilter("error")
             isolist = ellipse.fit_image(step=step, maxsma=maxsma)
         except:
             print("No meaningful fit was possible")
             return -1
 
-    if kwargs.get('fflag'):
-        warnings.simplefilter("error")
+    if 'fflag' in kwargs:
+        # warnings.simplefilter("error")
         isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
 
     for iso in isolist:
@@ -212,7 +213,7 @@ def ellipse_fit(**kwargs):
     print('eps =', isolist.eps[-1])
     print('pa =', isolist.pa[-1])
     # print('sma_max = ', isolist.sma[:])
-    warnings.simplefilter('default')
+    # warnings.simplefilter('default')
 
     return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
 
@@ -228,7 +229,7 @@ def calc_sb(image, **kwargs):
     eps0 = kwargs.get('eps')
     theta0 = kwargs.get('theta')
 
-    if kwargs.get('step'):
+    if 'step' in kwargs:
         step = kwargs.get('step')
     else:
         step = 5.5
@@ -240,7 +241,7 @@ def calc_sb(image, **kwargs):
     a_out.append(a_in[-1]+step)
     b_out.append(a_out[-1] * np.sqrt(1 - eps0 ** 2))
 
-    if kwargs.get('rmax'):
+    if 'rmax' in kwargs:
         maxsma = kwargs.get('rmax')
 
         while a_out[-1] < maxsma:
@@ -254,39 +255,53 @@ def calc_sb(image, **kwargs):
         for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
             annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
 
-        table_aper = aperture_photometry(image, annulae)
+        if ('bg_rms' in kwargs) & ('gain' in kwargs):
+            total_error = calc_total_error(image, kwargs.get('bg_rms'), kwargs.get('gain'))
 
-        num_apers = len(table_aper.colnames) - 3
+            table_aper = aperture_photometry(image, annulae, error=total_error)
+            num_apers = int((len(table_aper.colnames) - 3)/2)
 
-        intens = []
-        for i in range(num_apers):
-            intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
+            intens = []
+            int_error = []
+            # print(table_aper)
+            for i in range(num_apers):
+                intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
+                int_error.append(table_aper['aperture_sum_err_'+str(i)][0] / annulae[i].area())
+                # print(i, intens[i], int_error[i])
+            return (a_out + a_in) / 2., np.array(intens), np.array(int_error)
+        else:
+            table_aper = aperture_photometry(image, annulae)
+            num_apers = len(table_aper.colnames) - 3
+
+            intens = []
+            for i in range(num_apers):
+                intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
 
         # print('number of apertures = ', len(intens))
         return (a_out + a_in) / 2., np.array(intens)
-
-    f_max = 5.
-    while a_out[-1] < sma0*f_max:
-        a_in.append(a_in[-1]+step)
-        a_out.append(a_out[-1]+step)
-        b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
-
-    a_in, a_out, b_out = np.array([a_in, a_out, b_out])
-
-    annulae = []
-    for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
-        annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
-
-    table_aper = aperture_photometry(image, annulae)
-
-    num_apers = len(table_aper.colnames) - 3
-
-    intens = []
-    for i in range(num_apers):
-        intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
-
-    # print('number of apertures = ', len(intens))
-    return (a_out+a_in)/2., np.array(intens)
+    #
+    # f_max = 5.
+    # while a_out[-1] < sma0*f_max:
+    #     a_in.append(a_in[-1]+step)
+    #     a_out.append(a_out[-1]+step)
+    #     b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
+    #
+    # a_in, a_out, b_out = np.array([a_in, a_out, b_out])
+    #
+    # annulae = []
+    # for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
+    #     annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
+    #
+    # table_aper = aperture_photometry(image, annulae)
+    #
+    # num_apers = len(table_aper.colnames) - 3
+    #
+    # intens = []
+    # for i in range(num_apers):
+    #     intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
+    #
+    # # print('number of apertures = ', len(intens))
+    # return (a_out+a_in)/2., np.array(intens)
 
 
 def slit(image, step, width, centre, rmax, angle, **kwargs):
@@ -339,7 +354,7 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
 
 
 def unsharp_mask(image, **kwargs):  # пока не работает, забей
-    if kwargs.get('size'):
+    if 'size' in kwargs:
         size = kwargs.get('size')
     else:
         size = 10
@@ -366,7 +381,7 @@ def calc_bkg(image, mask, **kwargs):
     return:
     Background2D object"""
 
-    if kwargs.get('size'):
+    if 'size' in kwargs:
         size = kwargs.get('size')
     else:
         size = int(np.shape(image)[0]/4)
@@ -388,7 +403,7 @@ def find_reg(r, ynew, **kwargs):
 
 
 def find_parabola(r, sb, **kwargs):
-    if kwargs.get('s'):
+    if 's' in kwargs:
         s = kwargs.get('s')
     else:
         s = 0.3
@@ -405,14 +420,19 @@ def find_parabola(r, sb, **kwargs):
     fr.set_smoothing_factor(kwargs.get('smooth'))
     fsb.set_smoothing_factor(kwargs.get('smooth'))
 
-    if kwargs.get('grad'):
+    if 'std' in kwargs:
+        fsb = UnivariateSpline(t, sb, 1./kwargs.get('std'))
+
+    if 'grad' in kwargs:
         rd1 = fr.derivative(1)(t)
         rd2 = fr.derivative(2)(t)
         sbd1 = fsb.derivative(1)(t)
         sbd2 = fsb.derivative(2)(t)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-        idx0 = signal.argrelextrema(abs(curvature), np.less)[0]
+        idx0 = signal.argrelextrema(abs(curvature), np.greater)[0]
         idx_min = signal.argrelextrema(curvature, np.less)[0]
+        idx_min_abs = np.argmin(curvature)
+        idx_max_abs = np.argmax(curvature)
         idx = np.searchsorted(idx0, idx_min[0])
         if idx > 0:
             fit_interval = np.arange(idx0[idx-1], idx0[idx], 1)
@@ -431,8 +451,10 @@ def find_parabola(r, sb, **kwargs):
     plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
     # plt.scatter(tck*0.396, ynew, color='lawngreen', s=4)
     p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
-    plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='zero curvature')
+    plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='max abs curvature')
     plt.scatter(r[idx_min] * 0.396, sb[idx_min], color='cyan', s=12, label='max negative curvature')
+    plt.scatter(r[idx_min_abs] * 0.396, sb[idx_min_abs], color='navy', marker='*', s=18, label='min')
+    plt.scatter(r[idx_max_abs] * 0.396, sb[idx_max_abs], color='r', marker='*', s=18, label='max(abs)')
     plt.plot(fit_r*0.396, p(fit_r*0.396), color='k')
     # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
     plt.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.4, lw=3)
@@ -445,6 +467,12 @@ def find_parabola(r, sb, **kwargs):
     plt.legend()
     plt.gca().invert_yaxis()
     plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    plt.show()
+
+    plt.figure()
+    plt.title('curvature')
+    plt.scatter(r*0.396, abs(curvature))
+    plt.scatter(r*0.396, (curvature))
     plt.show()
 
     return fit_r*0.396, p(fit_r*0.396)
@@ -462,7 +490,7 @@ def find_outer(image, centre, **kwargs):
     plt.savefig(kwargs.get('path')+'seg_map/'+kwargs.get('figname')+'_mask.png')
     plt.show()
 
-    r = [np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))]
+    r = np.array([np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))])
     hist = np.histogram(r, bins=100, density=True)
     cum_hist = np.cumsum(hist[0])
     cum_hist = cum_hist/np.amax(cum_hist)
@@ -478,18 +506,19 @@ def find_outer(image, centre, **kwargs):
     FD_bin = 2*iqr/(len(r))**(1./3.)  # лол кек, q1, q2, q3 ты находишь из рандомной гистограммы ¯\_(ツ)_/¯
 
     print('Freedman Diaconis bin = ', FD_bin)
+    r = r*0.396
     r_edges = np.arange(np.amin(r), np.amax(r), FD_bin)
 
     plt.figure()
     plt.hist(r, bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
     # plt.hist(r, bins=100, density=True, alpha=0.5, color='b')
-    plt.axvline(r_max, color='red', label='$r_{max}$')
-    plt.axvline(r_min, color='darkorange', label='$r_{min}$')
+    plt.axvline(r_max*0.396, color='red', label='$r_{max}$')
+    plt.axvline(r_min*0.396, color='darkorange', label='$r_{min}$')
 
-    if kwargs.get('petro'):
-        plt.axvline(kwargs.get('petro')/0.396, color='indigo', label='petro')
-    if kwargs.get('petro50'):
-        plt.axvline(kwargs.get('petro50')/0.396, color='green', label='petro50')
+    if 'petro' in kwargs:
+        plt.axvline(kwargs.get('petro'), color='indigo', label='petro')
+    if 'petro50' in kwargs:
+        plt.axvline(kwargs.get('petro50'), color='green', label='petro50')
     plt.title(kwargs.get('title'))
     plt.xlabel('r (pix)')
     plt.legend()

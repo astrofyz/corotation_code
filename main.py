@@ -28,7 +28,7 @@ out_path = '/home/mouse13/corotation_code/data/'
 # gal_name = '588848898849112176'
 # gal_name = '587739707948204093'
 # gal_name = '587735349636300832'
-gal_name = '588011124118585393'
+# gal_name = '588011124118585393'
 # gal_name = '587737827288809605'
 # gal_name = '587741490906398723'
 # gal_name = '587732048403824840'
@@ -36,7 +36,7 @@ gal_name = '588011124118585393'
 # gal_name = '587736584429306061'
 # gal_name = '587729150383095831'
 # gal_name = '587729150383161562'
-# gal_name = '587741490893684878'
+gal_name = '587741490893684878'
 # gal_name = '587736804008722435'
 # gal_name = '588017566556225638'
 # gal_name = '587726033334632485'
@@ -97,6 +97,10 @@ real_bg_u = u_real_sh - bkg_u.background
 real_bg_i = i_real_sh - bkg_i.background
 real_bg_z = z_real_sh - bkg_z.background
 
+# print('background rms shape', np.shape(bkg_r.background_rms))
+# print('image shape', np.shape(r_real_sh))
+
+
 real_mag_r = to_mag(image=real_bg_r, zp=zp_r)
 real_mag_g = to_mag(image=real_bg_g, zp=zp_g)
 real_mag_u = to_mag(image=real_bg_u, zp=zp_u)
@@ -146,20 +150,31 @@ except:
 
 step = step_FD
 
-sma_pix_r, sb_r = calc_sb(real_mag_r, step=step, rmax=r_max, x=xc, y=xc, eps=0.,
-                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'])
+gain_r = all_table.loc[all_table.objid14 == int(gal_name), ['gain_r']].values[0][0]
+gain_g = all_table.loc[all_table.objid14 == int(gal_name), ['gain_g']].values[0][0]
+gain_u = all_table.loc[all_table.objid14 == int(gal_name), ['gain_u']].values[0][0]
+gain_i = all_table.loc[all_table.objid14 == int(gal_name), ['gain_i']].values[0][0]
+gain_z = all_table.loc[all_table.objid14 == int(gal_name), ['gain_z']].values[0][0]
+print('gain_r = ', gain_r)
+sma_pix_r, sb_r, sb_r_err = calc_sb(real_mag_r, step=step, rmax=r_max, x=xc, y=xc, eps=0.,
+                          sma=r_cat[1].data.T[0]['X_IMAGE'], theta=r_cat[1].data.T[0]['THETA_IMAGE'],
+                          bg_rms=bkg_r.background_rms, gain=gain_r)
 
-sma_pix_g, sb_g = calc_sb(real_mag_g, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
-                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
+sma_pix_g, sb_g, sb_g_err = calc_sb(real_mag_g, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
+                          sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'],
+                          bg_rms=bkg_g.background_rms, gain=gain_g)
 
-sma_pix_u, sb_u = calc_sb(real_mag_u, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
-                          sma=u_cat[1].data.T[0]['X_IMAGE'], theta=u_cat[1].data.T[0]['THETA_IMAGE'])
+sma_pix_u, sb_u, sb_u_err = calc_sb(real_mag_u, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
+                          sma=u_cat[1].data.T[0]['X_IMAGE'], theta=u_cat[1].data.T[0]['THETA_IMAGE'],
+                          bg_rms=bkg_u.background_rms, gain=gain_u)
 
-sma_pix_i, sb_i = calc_sb(real_mag_i, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
-                          sma=i_cat[1].data.T[0]['X_IMAGE'], theta=i_cat[1].data.T[0]['THETA_IMAGE'])
+sma_pix_i, sb_i, sb_i_err = calc_sb(real_mag_i, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
+                          sma=i_cat[1].data.T[0]['X_IMAGE'], theta=i_cat[1].data.T[0]['THETA_IMAGE'],
+                          bg_rms=bkg_i.background_rms, gain=gain_i)
 
-sma_pix_z, sb_z = calc_sb(real_mag_z, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
-                          sma=z_cat[1].data.T[0]['X_IMAGE'], theta=z_cat[1].data.T[0]['THETA_IMAGE'])
+sma_pix_z, sb_z, sb_z_err = calc_sb(real_mag_z, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
+                          sma=z_cat[1].data.T[0]['X_IMAGE'], theta=z_cat[1].data.T[0]['THETA_IMAGE'],
+                          bg_rms=bkg_z.background_rms, gain=gain_z)
 
 sma_pix_g_i, sb_g_i = calc_sb(real_mag_g-real_mag_i, step=step, rmax=r_max, x=xc, y=yc, eps=0.,
                               sma=g_cat[1].data.T[0]['X_IMAGE'], theta=g_cat[1].data.T[0]['THETA_IMAGE'])
@@ -175,14 +190,19 @@ sma_pix_u_g, sb_u_g = calc_sb(real_mag_u-real_mag_g, step=step, rmax=r_max, x=xc
 
 bg_mag = calc_bkg(real_mag_r, mask_r).background_median
 print('number of apertures', len(sb_r))
+print('min max errors r', min(sb_r_err), max(sb_r_err))
+print('min max errors g', min(sb_g_err), max(sb_g_err))
+print('min max errors u', min(sb_u_err), max(sb_u_err))
+print('min max errors i', min(sb_i_err), max(sb_i_err))
+print('min max errors z', min(sb_z_err), max(sb_z_err))
 
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=0.03)
-par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=0.03)
-par_i = find_parabola(sma_pix_i, sb_i, s=0.3, path=out_path, figname=gal_name, grad=True, smooth=0.03)
-par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=0.03)
+par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_r_err)**2)
+par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_g_err)**2)
+par_i = find_parabola(sma_pix_i, sb_i, s=0.3, path=out_path, figname=gal_name, grad=True, smooth=min(sb_i_err)**2)
+par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_z_err)**2)
 
 rad_r = par_r[0][np.argmax(par_r[1])]
 rad_g = par_g[0][np.argmax(par_g[1])]
@@ -201,6 +221,12 @@ a_all.plot(sma_pix_g*0.396, sb_g, color='blue', label='g  '+str(np.round(rad_g, 
 a_all.plot(sma_pix_i*0.396, sb_i, color='gold', label='i  '+str(np.round(rad_i, 3)))
 a_all.plot(sma_pix_z*0.396, sb_z, color='g',    label='z  '+str(np.round(rad_z, 3)))
 a_all.plot(sma_pix_u*0.396, sb_u, label='u', color='m')
+a_all.fill_between(sma_pix_r*0.396, sb_r-sb_r_err, sb_r+sb_r_err, color='red',  alpha=0.2)
+a_all.fill_between(sma_pix_g*0.396, sb_g-sb_g_err, sb_g+sb_g_err, color='blue',  alpha=0.2)
+a_all.fill_between(sma_pix_u*0.396, sb_u-sb_u_err, sb_u+sb_u_err, color='m',  alpha=0.2)
+a_all.fill_between(sma_pix_i*0.396, sb_i-sb_i_err, sb_i+sb_i_err, color='gold',  alpha=0.2)
+a_all.fill_between(sma_pix_z*0.396, sb_z-sb_z_err, sb_z+sb_z_err, color='g',  alpha=0.2)
+
 
 a_all.plot(par_r[0], par_r[1], color='k')
 a_all.plot(par_g[0], par_g[1], color='k')
