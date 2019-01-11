@@ -12,6 +12,7 @@ from photutils.utils import calc_total_error
 from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
 import warnings
+import numpy.ma as ma
 
 
 def read_images(name, **kwargs):
@@ -411,8 +412,10 @@ def find_parabola(r, sb, **kwargs):
     tck = splrep(r, sb, s=s)
     ynew = splev(r, tck, der=0)
 
-    # print(r)
-    # print(sb)
+    if 'rmax' in kwargs:
+        idxs = np.where(r < kwargs.get('rmax'))
+        r = r[idxs]
+        sb = sb[idxs]
 
     t = np.arange(len(r))
     fr = UnivariateSpline(t, r)
@@ -429,50 +432,47 @@ def find_parabola(r, sb, **kwargs):
         sbd1 = fsb.derivative(1)(t)
         sbd2 = fsb.derivative(2)(t)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-        idx0 = signal.argrelextrema(abs(curvature), np.greater)[0]
-        idx_min = signal.argrelextrema(curvature, np.less)[0]
-        idx_min_abs = np.argmin(curvature)
-        idx_max_abs = np.argmax(curvature)
-        idx = np.searchsorted(idx0, idx_min[0])
-        if idx > 0:
-            fit_interval = np.arange(idx0[idx-1], idx0[idx], 1)
-            fit_r = r[fit_interval]
-            fit_sb = sb[fit_interval]
-        else:
-            fit_interval = np.arange(2*idx_min[0]-idx0[0], idx0[0], 1)
-            fit_r = r[fit_interval]
-            fit_sb = sb[fit_interval]
-        # print(fit_interval)
-        # approx_min, approx_max = interval_grad(r, ynew)
-    else:
-        fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
+        idx_zero = signal.argrelextrema(abs(curvature), np.less)[0]
+        idx_max_neg = signal.argrelextrema(ma.masked_greater(curvature, 0), np.less)[0]
+        # print('zero', idx_zero, np.shape(idx_zero))
+        # print(idx_max_neg)
+        idx_sorted = np.sort(np.concatenate((idx_max_neg, idx_zero), axis=0))
+        # print('sort', np.searchsorted(idx_zero, idx_max_neg))
+        # print(idx_sorted)
+        low = np.searchsorted(idx_zero, idx_max_neg)[0]-1
+        top = np.searchsorted(idx_zero, idx_max_neg)[0]+1
+        # print(r[idx_sorted[low]]*0.396, r[idx_sorted[top]]*0.396)
 
-    plt.figure()
-    plt.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
-    # plt.scatter(tck*0.396, ynew, color='lawngreen', s=4)
-    p = np.poly1d(np.polyfit(fit_r*0.396, fit_sb, deg=2))
-    plt.scatter(r[idx0] * 0.396, sb[idx0], color='darkorange', s=12, label='max abs curvature')
-    plt.scatter(r[idx_min] * 0.396, sb[idx_min], color='cyan', s=12, label='max negative curvature')
-    plt.scatter(r[idx_min_abs] * 0.396, sb[idx_min_abs], color='navy', marker='*', s=18, label='min')
-    plt.scatter(r[idx_max_abs] * 0.396, sb[idx_max_abs], color='r', marker='*', s=18, label='max(abs)')
-    plt.plot(fit_r*0.396, p(fit_r*0.396), color='k')
-    # plt.scatter(r[fit_interval]*0.396, sb[fit_interval], color='cyan', s=12, label='interval edges')
-    plt.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.4, lw=3)
-    plt.axvline(0.396*fit_r[np.argmax(p(fit_r*0.396))], color='k')
-    # print(fit_r*0.396)
-    # print(p(fit_r*0.396))
-    # plt.title(kwargs.get('title'))
-    plt.xlabel('r (arcsec)')
-    plt.ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-    plt.legend()
-    plt.gca().invert_yaxis()
-    plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
-    plt.show()
+        fit_interval = np.arange(idx_sorted[low], idx_sorted[top], 1)
+        fit_r = r[fit_interval]
+        fit_sb = sb[fit_interval]
+        # print(fit_r, fit_sb)
+        p = np.poly1d(np.polyfit(fit_r * 0.396, fit_sb, deg=2))
 
-    plt.figure()
-    plt.title('curvature')
-    plt.scatter(r*0.396, abs(curvature))
-    plt.scatter(r*0.396, (curvature))
+    #     else:
+    #         fit_interval = np.arange(2*idx_min[0]-idx0[0], idx0[0], 1)
+    #         fit_r = r[fit_interval]
+    #         fit_sb = sb[fit_interval]
+    #     # print(fit_interval)
+    #     # approx_min, approx_max = interval_grad(r, ynew)
+    # else:
+    #     fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
+
+    f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
+    ax1.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
+    ax1.scatter(r[idx_zero] * 0.396, sb[idx_zero], color='navy', marker='*', s=18, label='zero')
+    ax1.scatter(r[idx_max_neg] * 0.396, sb[idx_max_neg], color='r', marker='*', s=18, label='max neg')
+    ax1.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.2, lw=6)
+    ax1.plot(fit_r * 0.396, p(fit_r * 0.396), color='k', label='approx')
+    ax1.set_xlabel('r (arcsec)')
+    ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+    ax1.legend()
+    ax1.set_ylim(max(sb), min(sb))
+    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+
+    ax2.scatter(r*0.396, abs(curvature), s=14, label='|curvature|')
+    ax2.scatter(r*0.396, (curvature), s=14, label='curvature')
+    ax2.legend()
     plt.show()
 
     return fit_r*0.396, p(fit_r*0.396)

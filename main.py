@@ -21,25 +21,25 @@ out_path = '/home/mouse13/corotation_code/data/'
 # print(all_table.columns)
 
 # gal_name = '1237651539800293493'
-# gal_name = '588007004191326250'
-# gal_name = '587742551759257682'
-# gal_name = '587732771864182806'
-# gal_name = '587724648720826467'
-# gal_name = '588848898849112176'
-# gal_name = '587739707948204093'
-# gal_name = '587735349636300832'
-# gal_name = '588011124118585393'
-# gal_name = '587737827288809605'
-# gal_name = '587741490906398723'
-# gal_name = '587732048403824840'
 # gal_name = '587738946131132437'
-# gal_name = '587736584429306061'
-# gal_name = '587729150383095831'
-# gal_name = '587729150383161562'
-gal_name = '587741490893684878'
-# gal_name = '587736804008722435'
 # gal_name = '588017566556225638'
+# gal_name = '587732048403824840'
+# gal_name = '587741490906398723'
+# gal_name = '587736804008722435'
+# gal_name = '588848898849112176'
+# gal_name = '588011124118585393'
+gal_name = '587741490893684878'
+# gal_name = '587739707948204093'
+# gal_name = '588007004191326250'
+# gal_name = '587732771864182806'
 # gal_name = '587726033334632485'
+# gal_name = '587736584429306061'
+# gal_name = '587729150383161562'
+# gal_name = '587742551759257682'
+# gal_name = '587724648720826467'
+# gal_name = '587735349636300832'
+# gal_name = '587737827288809605'
+# gal_name = '587729150383095831'
 # gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
@@ -199,10 +199,10 @@ print('min max errors z', min(sb_z_err), max(sb_z_err))
 mag_max = np.amax(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 mag_min = np.amin(np.concatenate([sb_r, sb_i, sb_g, sb_z, sb_u]))
 
-par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_r_err)**2)
-par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_g_err)**2)
-par_i = find_parabola(sma_pix_i, sb_i, s=0.3, path=out_path, figname=gal_name, grad=True, smooth=min(sb_i_err)**2)
-par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=min(sb_z_err)**2)
+par_r = find_parabola(sma_pix_r, sb_r, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=np.min(sb_r_err))
+par_g = find_parabola(sma_pix_g, sb_g, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=np.min(sb_g_err))
+par_i = find_parabola(sma_pix_i, sb_i, s=0.3, path=out_path, figname=gal_name, grad=True, smooth=np.min(sb_i_err))
+par_z = find_parabola(sma_pix_z, sb_z, s=0.1, path=out_path, figname=gal_name, grad=True, smooth=np.min(sb_z_err))
 
 rad_r = par_r[0][np.argmax(par_r[1])]
 rad_g = par_g[0][np.argmax(par_g[1])]
@@ -304,7 +304,7 @@ with open(out_path+'result.csv', 'a', newline='') as csvfile:
     res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
     res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
                          + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
-    res_writer.writerow([title_name, str(step_FD)])
+    res_writer.writerow([title_name, 'stepFD', str(np.round(step_FD, 3))])
     res_writer.writerow(['....................................................................'])
     csvfile.close()
 
