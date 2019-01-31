@@ -13,6 +13,8 @@ from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
 import warnings
 import numpy.ma as ma
+import cv2
+import scipy.fftpack as fft
 
 
 def read_images(name, **kwargs):
@@ -550,9 +552,64 @@ def interval_grad(x, y):  # надо отфильтрованный перпен
     return idx_min, idx_max
 
 
+def fourier_harmonics(image, harmonics=[1, 2, 3, 4], **kwargs):
+    value = np.sqrt(((image.shape[0] / 2.0) ** 2.0) + ((image.shape[1] / 2.0) ** 2.0))
 
+    polar_image = cv2.linearPolar(image, (image.shape[0] / 2, image.shape[1] / 2), value, cv2.WARP_FILL_OUTLIERS)
+    # print(type(polar_image), np.shape(polar_image))
 
+    # norm = ImageNormalize(stretch=LogStretch())
+    plt.figure()
+    plt.imshow(polar_image, origin='lower', cmap='Greys')
+    ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
+    plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
+    plt.show()
 
+    # r_range = np.linspace(0, nx, 50)
+    # phi_range = np.linspace(0, 2 * np.pi, 150)
+
+    if 'rmax' in kwargs:  # rmax in pixels!
+        rmax = int(kwargs.get('rmax'))
+        len_I = rmax
+    else:
+        len_I = image.shape[0]  # y or x len in case of non-square image?
+        rmax = len_I
+
+    I = np.zeros((len(harmonics), len_I))
+
+    j = 0
+    for r in range(0, len_I):
+        data_r = polar_image[:, r]
+        data_fft = fft.dct(data_r)
+        i = 0
+        for harmonic in harmonics:
+            I[i][j] = abs(data_fft[harmonic])
+            i += 1
+        j += 1
+        # if r == 40:
+        #     freq = fft.fftfreq(len(data_r), 1. / len(data_r))
+        #     nx = image.shape[0]
+        #     plt.figure()
+        #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, polar_image[:, r])
+        #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, 1. / nx * sum(
+        #         [data_fft[i] * np.cos(freq[i] * np.linspace(0, nx, nx) * np.pi / nx) for i in range(len(data_fft))]))
+        #     plt.show()
+
+    plt.figure()
+    for i in range(len(harmonics)):
+        plt.plot(np.linspace(0, len_I, len_I)*0.396, I[i], label=harmonics[i])
+    plt.legend()
+    plt.show()
+
+    # print(freq)
+
+    # plt.figure()
+    # plt.plot(freq, (data_fft))
+    # plt.xlim(0, 18)
+    # plt.grid()
+    # plt.show()
+
+    return I
 
 # from scipy.interpolate import UnivariateSpline
 # import numpy as np

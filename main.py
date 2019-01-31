@@ -9,14 +9,14 @@ import csv
 import numpy.ma as ma
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
-# all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
-all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
+# all_table = pd.read_csv('../corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 
-path = '../corotation/buta_gal/image'
-out_path = '/home/mouse13/corotation_code/data/'
+# path = '../corotation/buta_gal/image'
+# out_path = '/home/mouse13/corotation_code/data/'
 
-# path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-# out_path = '/media/mouse13/My Passport/corotation_code/data/'
+path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 
 # print(all_table.columns)
 
@@ -273,7 +273,7 @@ plt.plot(per[0]*0.396, per_filt, color='crimson')
 plt.gca().invert_yaxis()
 plt.title(title)
 plt.legend()
-plt.xlabel('r (arcsec')
+plt.xlabel('r (arcsec)')
 plt.ylabel('$\mu[r] \quad (mag\:arcsec^{-2})$')
 plt.savefig(out_path+'slit/'+gal_name+'_slit.png')
 plt.show()
@@ -287,26 +287,27 @@ plt.title(title)
 plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
 plt.show()
 
-print('hey')
-with open(out_path+'result.csv', 'a', newline='') as csvfile:
-    res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
-    res_writer.writerow(['name : ' + title_name])
-    res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
-    res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
-
-    res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
-    res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
-    res_writer.writerow(['number of apertures : '+str(len(sb_r))])
-
-    res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
-    res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
-    res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
-    res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
-    res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
-                         + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
-    res_writer.writerow([title_name, 'stepFD', str(np.round(step_FD, 3))])
-    res_writer.writerow(['....................................................................'])
-    csvfile.close()
+fourier_harmonics(rot_sca_r, [1, 2, 3, 4], rmax=2.*r_max)
+# print('hey')
+# with open(out_path+'result.csv', 'a', newline='') as csvfile:
+#     res_writer = csv.writer(csvfile, delimiter=' ', quotechar=' ', quoting=csv.QUOTE_MINIMAL)
+#     res_writer.writerow(['name : ' + title_name])
+#     res_writer.writerow(['r_max : ' + str(np.round(r_max, 5))])
+#     res_writer.writerow(['x_real, y_real : ' + str(np.round(x_real, 3)) + ' ' + str(np.round(y_real, 3))])
+#
+#     res_writer.writerow(['eps : ' + str(np.round(eps, 5)) + '  ' + str(np.round(np.sqrt(1-eps**2), 3))])
+#     res_writer.writerow(['PA : ' + str(np.round(pa, 5)) + '  ' + str(np.round(pa*180./np.pi, 3))])
+#     res_writer.writerow(['number of apertures : '+str(len(sb_r))])
+#
+#     res_writer.writerow(['corot_rad_r : ' + str(np.round(rad_r, 5))])
+#     res_writer.writerow(['corot_rad_g : ' + str(np.round(rad_g, 5))])
+#     res_writer.writerow(['corot_rad_i : ' + str(np.round(rad_i, 5))])
+#     res_writer.writerow(['corot_rad_z : ' + str(np.round(rad_z, 5))])
+#     res_writer.writerow(['corot_rad : ' + str(np.round(np.mean([rad_r, rad_g, rad_i, rad_z]), 3)) + '+-'
+#                          + str(np.round(np.std([rad_r, rad_g, rad_i, rad_z]), 3))])
+#     res_writer.writerow([title_name, 'stepFD', str(np.round(step_FD, 3))])
+#     res_writer.writerow(['....................................................................'])
+#     csvfile.close()
 
 
 # unsharp_mask(real_mag_r_sh)
