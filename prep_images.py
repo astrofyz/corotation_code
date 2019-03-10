@@ -186,39 +186,46 @@ def ellipse_fit(**kwargs):
 
     ellipse = Ellipse(image, geom_inp)
 
-    if 'rmax' in kwargs:
-        maxsma = kwargs.get('rmax')
+    isolist = ellipse.fit_isophote(sma=rmin)
+    # print('from r_min: eps = {}, pa = {}'.format(isolist_min.eps, isolist_min.pa))
 
-        aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
-                                      maxsma * np.sqrt(1 - geom_inp.eps ** 2),
-                                      geom_inp.pa)
-        aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
+    # if 'rmax' in kwargs:
+    #     maxsma = kwargs.get('rmax')
+    #
+    #     aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
+    #                                   maxsma * np.sqrt(1 - geom_inp.eps ** 2),
+    #                                   geom_inp.pa)
+    #     aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
+    #
+    #     try:
+    #         # warnings.simplefilter("error")
+    #         isolist = ellipse.fit_image(step=step, maxsma=maxsma)
+    #     except:
+    #         print("No meaningful fit was possible")
+    #         return -1
+    #
+    # if 'fflag' in kwargs:
+    #     # warnings.simplefilter("error")
+    #     isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
 
-        try:
-            # warnings.simplefilter("error")
-            isolist = ellipse.fit_image(step=step, maxsma=maxsma)
-        except:
-            print("No meaningful fit was possible")
-            return -1
-
-    if 'fflag' in kwargs:
-        # warnings.simplefilter("error")
-        isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
-
-    for iso in isolist:
-        x, y, = iso.sampled_coordinates()
-        plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
-        plt.xlabel('x (pix)')
-        plt.ylabel('y (pix)')
+    # for iso in isolist:
+    #     x, y, = iso.sampled_coordinates()
+    #     plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
+    #     plt.xlabel('x (pix)')
+    #     plt.ylabel('y (pix)')
+    x, y, = isolist.sampled_coordinates()
+    plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
+    plt.xlabel('x (pix)')
+    plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
     plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
     plt.show()
-    print('eps =', isolist.eps[-1])
-    print('pa =', isolist.pa[-1])
+    print('eps =', isolist.eps)
+    print('pa =', isolist.pa)
     # print('sma_max = ', isolist.sma[:])
     # warnings.simplefilter('default')
 
-    return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
+    return isolist.eps, isolist.pa  # получается разворот по внешнему эллипсу
 
 
 def calc_sb(image, **kwargs):
@@ -552,7 +559,7 @@ def interval_grad(x, y):  # надо отфильтрованный перпен
     return idx_min, idx_max
 
 
-def fourier_harmonics(image, harmonics=[1, 2, 3, 4], **kwargs):
+def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     value = np.sqrt(((image.shape[0] / 2.0) ** 2.0) + ((image.shape[1] / 2.0) ** 2.0))
 
     polar_image = cv2.linearPolar(image, (image.shape[0] / 2, image.shape[1] / 2), value, cv2.WARP_FILL_OUTLIERS)
@@ -578,12 +585,13 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], **kwargs):
     I = np.zeros((len(harmonics), len_I))
 
     j = 0
-    for r in range(0, len_I):
-        data_r = polar_image[:, r]
+    for r in range(sig, len_I-sig):
+        # data_r = polar_image[:, r]
+        data_r = [np.mean(row) for row in polar_image[:, r-sig:r+sig]]
         data_fft = fft.dct(data_r)
         i = 0
         for harmonic in harmonics:
-            I[i][j] = abs(data_fft[harmonic])
+            I[i][j] = abs(data_fft[harmonic])/abs(data_fft[0])
             i += 1
         j += 1
         # if r == 40:
@@ -599,6 +607,7 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], **kwargs):
     for i in range(len(harmonics)):
         plt.plot(np.linspace(0, len_I, len_I)*0.396, I[i], label=harmonics[i])
     plt.legend()
+    plt.savefig(kwargs.get('path')+'harmonics/'+kwargs.get('figname')+'_FH.png')
     plt.show()
 
     # print(freq)
