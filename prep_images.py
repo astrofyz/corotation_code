@@ -186,46 +186,49 @@ def ellipse_fit(**kwargs):
 
     ellipse = Ellipse(image, geom_inp)
 
-    isolist = ellipse.fit_isophote(sma=rmin)
     # print('from r_min: eps = {}, pa = {}'.format(isolist_min.eps, isolist_min.pa))
 
-    # if 'rmax' in kwargs:
-    #     maxsma = kwargs.get('rmax')
-    #
-    #     aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
-    #                                   maxsma * np.sqrt(1 - geom_inp.eps ** 2),
-    #                                   geom_inp.pa)
-    #     aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
-    #
-    #     try:
-    #         # warnings.simplefilter("error")
-    #         isolist = ellipse.fit_image(step=step, maxsma=maxsma)
-    #     except:
-    #         print("No meaningful fit was possible")
-    #         return -1
-    #
-    # if 'fflag' in kwargs:
-    #     # warnings.simplefilter("error")
-    #     isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
+    if 'rmax' in kwargs:
+        maxsma = kwargs.get('rmax')
 
-    # for iso in isolist:
-    #     x, y, = iso.sampled_coordinates()
-    #     plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
-    #     plt.xlabel('x (pix)')
-    #     plt.ylabel('y (pix)')
-    x, y, = isolist.sampled_coordinates()
-    plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
-    plt.xlabel('x (pix)')
-    plt.ylabel('y (pix)')
+        aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
+                                      maxsma * np.sqrt(1 - geom_inp.eps ** 2),
+                                      geom_inp.pa)
+        aper_fin.plot(color='gold', alpha=0.3)  # final ellipse guess
+
+        try:
+            # warnings.simplefilter("error")
+            isolist = ellipse.fit_image(step=step, maxsma=maxsma)
+        except:
+            print("No meaningful fit is possible, fit with r_min")
+            isolist = np.array(ellipse.fit_isophote(sma=rmin))
+
+    if 'fflag' in kwargs:
+        # warnings.simplefilter("error")
+        isolist = ellipse.fit_image(step=step, fflag=kwargs.get('fflag'))
+
+    for iso in isolist:
+        x, y, = iso.sampled_coordinates()
+        plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
+        plt.xlabel('x (pix)')
+        plt.ylabel('y (pix)')
+
+    # x, y, = isolist.sampled_coordinates()
+    # plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
+    # plt.xlabel('x (pix)')
+    # plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
     plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
     plt.show()
-    print('eps =', isolist.eps)
-    print('pa =', isolist.pa)
+    # print('eps =', isolist.eps)
+    # print('pa =', isolist.pa)
     # print('sma_max = ', isolist.sma[:])
     # warnings.simplefilter('default')
 
-    return isolist.eps, isolist.pa  # получается разворот по внешнему эллипсу
+    if len(isolist.eps) > 1:
+        return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
+    else:
+        return isolist.eps. isolist.pa
 
 
 def calc_sb(image, **kwargs):
@@ -348,7 +351,8 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     apertures_par.plot(color='green')
     apertures_per.plot(color='red')
     plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
-    plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim.png')
+    if 'path' in kwargs:
+        plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim{}.png'.format(np.round(angle, 2)))
     plt.show()
 
     table_par = aperture_photometry(image, apertures_par)

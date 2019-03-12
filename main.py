@@ -30,7 +30,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '588011124118585393'
 # gal_name = '587741490893684878'
 # gal_name = '587739707948204093'
-# gal_name = '588007004191326250'
+gal_name = '588007004191326250'
 # gal_name = '587732771864182806'
 # gal_name = '587726033334632485'
 # gal_name = '587736584429306061'
@@ -40,7 +40,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '587735349636300832'
 # gal_name = '587737827288809605'
 # gal_name = '587729150383095831'
-gal_name = '588017990689751059'
+# gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -136,12 +136,19 @@ try:  # нужен ли step?
                       eps=np.sqrt(1-(r_cat[1].data.T[0]['B_IMAGE']/r_cat[1].data.T[0]['A_IMAGE'])**2),
                       theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.4, rmin=petro_r,
                       title=title, figname=gal_name, path=out_path)
+
+    print('eps = {}'.format(eps))
+    print('pa = {}'.format(pa))
+
 except:
     try:
         eps, pa = ellipse_fit(image=image_for_fit, x=256, y=256, fflag=0.1,
                               eps=np.sqrt(1 - (r_cat[1].data.T[0]['B_IMAGE'] / r_cat[1].data.T[0]['A_IMAGE']) ** 2),
                               theta=r_cat[1].data.T[0]['THETA_IMAGE'], step=0.2, maxgerr=0.7, rmin=petro50_r,
                               title=title, figname=gal_name+'_min', path=out_path)
+
+        print('eps = {}'.format(eps))
+        print('pa = {}'.format(pa))
     except:
         print('No fit neither with petroRad nor petro50')
 #         # здесь должна быть ошибка
@@ -259,6 +266,22 @@ print('gain_r = ', gain_r)
 
 par, per = slit(real_mag_r, .7, 2.5, [256, 256], r_max, pa, title=title, figname=gal_name, path=out_path)
 
+# попробуем посчитать вычеты по углу:
+pa_space = np.linspace(0, np.pi/2., 20)
+
+residual = np.zeros((len(pa_space), int(len(par[0])/2)))
+for i, angle in zip(range(len(pa_space)), pa_space):
+    slit_par, slit_per = slit(real_mag_r, .7, 2.5, [256, 256], r_max, angle, title=title, figname=gal_name, path=out_path)
+    residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
+
+print(np.unravel_index(np.argmax(residual, axis=None), residual.shape))
+plt.figure()
+plt.imshow(residual)
+plt.show()
+
+par, per = slit(real_mag_r, .7, 2.5, [256, 256], r_max, pa_space[8], title=title, figname=gal_name, path=out_path)
+
+
 N = 2
 Wn = 0.1
 b, a = signal.butter(N, Wn)
@@ -270,6 +293,7 @@ plt.plot(par[0]*0.396, par[1], color='skyblue', lw=5, alpha=0.5, label='parallel
 plt.plot(par[0]*0.396, par_filt, color='navy', label=str(N)+' ; '+str(Wn))
 plt.plot(per[0]*0.396, per[1], color='lightsalmon', lw=5, alpha=0.5, label='perpendicular')
 plt.plot(per[0]*0.396, per_filt, color='crimson')
+plt.axvline(per[0][37]*0.396)
 plt.gca().invert_yaxis()
 plt.title(title)
 plt.legend()
