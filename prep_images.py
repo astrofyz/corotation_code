@@ -319,8 +319,8 @@ def calc_sb(image, **kwargs):
 
 def slit(image, step, width, centre, rmax, angle, **kwargs):
 
-    plt.figure()
-    plt.imshow(image, origin='lower', cmap='Greys')
+    # plt.figure()
+    # plt.imshow(image, origin='lower', cmap='Greys')
 
     step_par = np.array([step*np.cos(angle), step*np.sin(angle)])
     step_per = np.array([step*np.cos(angle+np.pi/2.), step*np.sin(angle+np.pi/2.)])
@@ -348,12 +348,12 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     apertures_par = RectangularAperture(r_par, width, step, angle)
     apertures_per = RectangularAperture(r_per, width, step, angle+np.pi/2.)
 
-    apertures_par.plot(color='green')
-    apertures_per.plot(color='red')
+    # apertures_par.plot(color='green')
+    # apertures_per.plot(color='red')
     plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
-    if 'path' in kwargs:
-        plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim{}.png'.format(np.round(angle, 2)))
-    plt.show()
+    # if 'path' in kwargs:
+    #     plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim{}.png'.format(np.round(angle, 2)))
+    # plt.show()
 
     table_par = aperture_photometry(image, apertures_par)
     table_per = aperture_photometry(image, apertures_per)
@@ -436,31 +436,52 @@ def find_parabola(r, sb, **kwargs):
     fr.set_smoothing_factor(kwargs.get('smooth'))
     fsb.set_smoothing_factor(kwargs.get('smooth'))
 
-    if 'std' in kwargs:
-        fsb = UnivariateSpline(t, sb, 1./kwargs.get('std'))
-
-    if 'grad' in kwargs:
-        rd1 = fr.derivative(1)(t)
-        rd2 = fr.derivative(2)(t)
-        sbd1 = fsb.derivative(1)(t)
-        sbd2 = fsb.derivative(2)(t)
+    if 'conv' in kwargs:
+        fsb = kwargs.get('conv')
+        rd1 = np.gradient(r)
+        rd2 = np.gradient(rd1)
+        sbd1 = np.gradient(fsb)
+        sbd2 = np.gradient(sbd1)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-        idx_zero = signal.argrelextrema(abs(curvature), np.less)[0]
-        idx_max_neg = signal.argrelextrema(ma.masked_greater(curvature, 0), np.less)[0]
-        # print('zero', idx_zero, np.shape(idx_zero))
-        # print(idx_max_neg)
-        idx_sorted = np.sort(np.concatenate((idx_max_neg, idx_zero), axis=0))
-        # print('sort', np.searchsorted(idx_zero, idx_max_neg))
-        # print(idx_sorted)
-        low = np.searchsorted(idx_zero, idx_max_neg)[0]-1
-        top = np.searchsorted(idx_zero, idx_max_neg)[0]+1
-        # print(r[idx_sorted[low]]*0.396, r[idx_sorted[top]]*0.396)
 
-        fit_interval = np.arange(idx_sorted[low], idx_sorted[top], 1)
+        low = np.where(abs(curvature) < 0.1)[0][0]
+        top = np.where(curvature[low:] > 0)[0][0] + low
+        # top_in = signal.argrelextrema(ma.masked_less(curvature[low:], 0), np.greater)[0][0]
+        # top = np.where(curvature == ma.masked_less(curvature[low:], 0).compressed()[top_in])[0][0]
+        print(low, top)
+
+        fit_interval = np.arange(low, top, 1)
         fit_r = r[fit_interval]
         fit_sb = sb[fit_interval]
         # print(fit_r, fit_sb)
         p = np.poly1d(np.polyfit(fit_r * 0.396, fit_sb, deg=2))
+
+
+    # if 'std' in kwargs:
+    #     fsb = UnivariateSpline(t, sb, 1./kwargs.get('std'))
+
+    # if 'grad' in kwargs:
+    #     rd1 = fr.derivative(1)(t)
+    #     rd2 = fr.derivative(2)(t)
+    #     sbd1 = fsb.derivative(1)(t)
+    #     sbd2 = fsb.derivative(2)(t)
+    #     curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
+    #     idx_zero = signal.argrelextrema(abs(curvature), np.less)[0]
+    #     idx_max_neg = signal.argrelextrema(ma.masked_greater(curvature, 0), np.less)[0]
+    #     # print('zero', idx_zero, np.shape(idx_zero))
+    #     # print(idx_max_neg)
+    #     idx_sorted = np.sort(np.concatenate((idx_max_neg, idx_zero), axis=0))
+    #     # print('sort', np.searchsorted(idx_zero, idx_max_neg))
+    #     # print(idx_sorted)
+    #     low = np.searchsorted(idx_zero, idx_max_neg)[0]-1
+    #     top = np.searchsorted(idx_zero, idx_max_neg)[0]+1
+    #     # print(r[idx_sorted[low]]*0.396, r[idx_sorted[top]]*0.396)
+    #
+    #     fit_interval = np.arange(idx_sorted[low], idx_sorted[top], 1)
+    #     fit_r = r[fit_interval]
+    #     fit_sb = sb[fit_interval]
+    #     # print(fit_r, fit_sb)
+    #     p = np.poly1d(np.polyfit(fit_r * 0.396, fit_sb, deg=2))
 
     #     else:
     #         fit_interval = np.arange(2*idx_min[0]-idx0[0], idx0[0], 1)
@@ -473,10 +494,13 @@ def find_parabola(r, sb, **kwargs):
 
     f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
     ax1.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
-    ax1.scatter(r[idx_zero] * 0.396, sb[idx_zero], color='navy', marker='*', s=18, label='zero')
-    ax1.scatter(r[idx_max_neg] * 0.396, sb[idx_max_neg], color='r', marker='*', s=18, label='max neg')
-    ax1.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.2, lw=6)
+    # ax1.scatter(r[idx_zero] * 0.396, sb[idx_zero], color='navy', marker='*', s=18, label='zero')
+    # ax1.scatter(r[idx_max_neg] * 0.396, sb[idx_max_neg], color='r', marker='*', s=18, label='max neg')
+    ax1.plot(r*0.396, fsb, color='darkmagenta', alpha=0.2, lw=6)
+    # ax1.plot(fr(t)*0.396, fsb(t), color='darkmagenta', alpha=0.2, lw=6)
     ax1.plot(fit_r * 0.396, p(fit_r * 0.396), color='k', label='approx')
+    ax1.axvline(r[low]*0.396)
+    ax1.axvline(r[top]*0.396)
     ax1.set_xlabel('r (arcsec)')
     ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
     ax1.legend()
@@ -485,11 +509,13 @@ def find_parabola(r, sb, **kwargs):
 
     ax2.scatter(r*0.396, abs(curvature), s=14, label='|curvature|')
     ax2.scatter(r*0.396, (curvature), s=14, label='curvature')
+    ax2.axhline(0.)
     ax2.legend()
+    plt.grid()
     plt.show()
 
     return fit_r*0.396, p(fit_r*0.396)
-
+    # return r*0.396, fsb
 
 def find_outer(image, centre, **kwargs):
     """ image = segmentation map with main object == 1"""
