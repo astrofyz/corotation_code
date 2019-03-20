@@ -25,11 +25,11 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '1237651539800293493'
 # gal_name = '587738946131132437'
 # gal_name = '588017566556225638'
-# gal_name = '587732048403824840'
+gal_name = '587732048403824840'
 # gal_name = '587741490906398723'
 # gal_name = '587736804008722435'
 # gal_name = '588848898849112176'
-gal_name = '588011124118585393'
+# gal_name = '588011124118585393'
 # gal_name = '587741490893684878'
 # gal_name = '587739707948204093'
 # gal_name = '588007004191326250'
@@ -301,9 +301,8 @@ for i, angle in zip(range(len(pa_space)), pa_space):
     slits[len(pa_space)+i] = slit_per[1]
     residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
 
-
 r = par[0][:]
-plt.figure()
+# fig = plt.figure()
 theta = np.linspace(0, np.pi, 2*len(pa_space))
 ax = plt.axes(projection='3d')
 for i in range(len(slits)):
@@ -315,9 +314,10 @@ plt.show()
 print(np.unravel_index(np.argmax(residual, axis=None), residual.shape))
 
 plt.figure()
+plt.title('residuals')
 for i in range(len(pa_space)):
     plt.plot(par[0][:int(len(par[0])/2)]*0.396, residual[i], label=np.round(pa_space[i], 2))
-    plt.legend()
+plt.legend()
 plt.show()
 
 
@@ -364,11 +364,11 @@ plt.show()
 ### ROTATE AND SCALE IMAGE
 rot_sca_r = rotate_and_scale(real_mag_r, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 
-plt.figure()
-plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
-plt.title(title)
-plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
-plt.show()
+# plt.figure()
+# plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
+# plt.title(title)
+# plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
+# plt.show()
 
 ### CALCULATE FOURIER HARMONICS
 fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_path)

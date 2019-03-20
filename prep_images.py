@@ -219,11 +219,7 @@ def ellipse_fit(**kwargs):
     # plt.ylabel('y (pix)')
     plt.title(kwargs.get('title'))
     plt.savefig(kwargs.get('path')+'fit_ellipse/'+kwargs.get('figname')+'_fit.png')
-    plt.show()
-    # print('eps =', isolist.eps)
-    # print('pa =', isolist.pa)
-    # print('sma_max = ', isolist.sma[:])
-    # warnings.simplefilter('default')
+    # plt.show()
 
     if len(isolist.eps) > 1:
         return isolist.eps[-1], isolist.pa[-1]  # получается разворот по внешнему эллипсу
@@ -444,10 +440,24 @@ def find_parabola(r, sb, **kwargs):
         sbd2 = np.gradient(sbd1)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
 
-        low = np.where(abs(curvature) < 0.1)[0][0]
-        top = np.where(curvature[low:] > 0)[0][0] + low
+        print(curvature)
+
+        idxs_valid = np.where(abs(curvature) < 0.1)
+        min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]
+        zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
+        # print(zero_abs, min_peak, idxs_valid, np.searchsorted(zero_abs, min_peak))
+        if min_peak > zero_abs[0]:
+            low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
+            top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
+        else:
+            low = np.where(abs(curvature) < 0.1)[0][0]
+            top = idxs_valid[0][zero_abs[0]]
+
+        # top = np.where(curvature[low:] > 0)[0][0] + low
         # top_in = signal.argrelextrema(ma.masked_less(curvature[low:], 0), np.greater)[0][0]
         # top = np.where(curvature == ma.masked_less(curvature[low:], 0).compressed()[top_in])[0][0]
+        # low = 4
+        # top = 10
         print(low, top)
 
         fit_interval = np.arange(low, top, 1)
@@ -527,7 +537,7 @@ def find_outer(image, centre, **kwargs):
     plt.title(kwargs.get('title'))
     plt.imshow(image, origin='lower')
     plt.savefig(kwargs.get('path')+'seg_map/'+kwargs.get('figname')+'_mask.png')
-    plt.show()
+    # plt.show()
 
     r = np.array([np.sqrt(np.dot(centre-np.array(idx_main).T[i], centre-np.array(idx_main).T[i])) for i in range(len(np.array(idx_main).T))])
     hist = np.histogram(r, bins=100, density=True)
@@ -562,7 +572,7 @@ def find_outer(image, centre, **kwargs):
     plt.xlabel('r (pix)')
     plt.legend()
     plt.savefig(kwargs.get('path')+'rmax_hist/'+kwargs.get('figname')+'_rmax.png')
-    plt.show()
+    # plt.show()
     return r_max, r_min, FD_bin
 
 
@@ -581,10 +591,10 @@ def interval_grad(x, y):  # надо отфильтрованный перпен
     print(curvature[idx_max])
 
     # interval = np.arange(idx0[0], idx0[1], 1)
-    plt.figure()
-    plt.plot(x*0.396, curvature)
+    # plt.figure()
+    # plt.plot(x*0.396, curvature)
     # plt.plot(x*0.396, abs(grad2))
-    plt.show()
+    # plt.show()
 
     return idx_min, idx_max
 
@@ -600,7 +610,7 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     plt.imshow(polar_image, origin='lower', cmap='Greys')
     ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
     plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
-    plt.show()
+    # plt.show()
 
     # r_range = np.linspace(0, nx, 50)
     # phi_range = np.linspace(0, 2 * np.pi, 150)
