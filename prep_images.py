@@ -440,7 +440,7 @@ def find_parabola(r, sb, **kwargs):
         sbd2 = np.gradient(sbd1)
         curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
 
-        print(curvature)
+        # print(curvature)
 
         idxs_valid = np.where(abs(curvature) < 0.1)
         min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]
@@ -524,7 +524,7 @@ def find_parabola(r, sb, **kwargs):
     plt.grid()
     plt.show()
 
-    return fit_r*0.396, p(fit_r*0.396)
+    return fit_r*0.396, p(fit_r*0.396), r[idxs_valid[0][-1]]*0.396
     # return r*0.396, fsb
 
 def find_outer(image, centre, **kwargs):
@@ -606,10 +606,10 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     # print(type(polar_image), np.shape(polar_image))
 
     # norm = ImageNormalize(stretch=LogStretch())
-    plt.figure()
-    plt.imshow(polar_image, origin='lower', cmap='Greys')
-    ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
-    plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
+    # plt.figure()
+    # plt.imshow(polar_image, origin='lower', cmap='Greys')
+    # ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
+    # plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
     # plt.show()
 
     # r_range = np.linspace(0, nx, 50)
@@ -659,80 +659,3 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     # plt.show()
 
     return I
-
-# from scipy.interpolate import UnivariateSpline
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from scipy.signal import argrelextrema
-#
-# def curvature_splines(x, y=None, error=0.1):
-#     """Calculate the signed curvature of a 2D curve at each point
-#     using interpolating splines.
-#     Parameters
-#     ----------
-#     x,y: numpy.array(dtype=float) shape (n_points, )
-#          or
-#          y=None and
-#          x is a numpy.array(dtype=complex) shape (n_points, )
-#          In the second case the curve is represented as a np.array
-#          of complex numbers.
-#     error : float
-#         The admisible error when interpolating the splines
-#     Returns
-#     -------
-#     curvature: numpy.array shape (n_points, )
-#     Note: This is 2-3x slower (1.8 ms for 2000 points) than `curvature_gradient`
-#     but more accurate, especially at the borders.
-#     """
-#
-#     # handle list of complex case
-#
-#     t = np.arange(x.shape[0])
-#     std = error * np.ones_like(x)
-#
-#     fx = UnivariateSpline(t, x )
-#     fy = UnivariateSpline(t, y )
-#
-#     fx.set_smoothing_factor(0.05)
-#     fy.set_smoothing_factor(0.05)
-#
-#     plt.figure()
-#     plt.plot(fx(t), fy(t))
-#     # plt.plot(t, fy(t))
-#     plt.gca().invert_yaxis()
-#     plt.show()
-#
-#     xd1 = fx.derivative(1)(t)
-#     xd2 = fx.derivative(2)(t)
-#     yd1 = fy.derivative(1)(t)
-#     yd2 = fy.derivative(2)(t)
-#     curvature = (xd1*yd2 - yd1*xd2) / (xd1**2 + yd2**2)**(3./2.)
-#     return curvature
-#
-# x = np.array([  4.12814093,   6.88023488,   9.63232884,  12.38442279,  15.13651674, 17.8886107 ,  20.64070465,  23.3927986 ,  26.14489256,  28.89698651, 31.64908046,  34.40117442,  37.15326837,  39.90536232,  42.65745628,   45.40955023,  48.16164418,  50.91373813,  53.66583209,  56.41792604,   59.17001999,  61.92211395,  64.6742079 ,  67.42630185,  70.17839581,   72.93048976,  75.68258371,  78.43467767,  81.18677162,  83.93886557,   86.69095953,  89.44305348,  92.19514743,  94.94724139,  97.69933534,  100.45142929, 103.20352325, 105.9556172 , 108.70771115, 111.45980511,  114.21189906, 116.96399301, 119.71608697, 122.46818092, 125.22027487,  127.97236883, 130.72446278, 133.47655673, 136.22865068, 138.98074464,  141.73283859, 144.48493254, 147.2370265 , 149.98912045, 152.7412144, 155.49330836, 158.24540231, 160.99749626])
-#
-# y = np.array([24.4110272,  25.14110872,  25.72375065,  26.23211776,  26.5993287 ,  26.87374244, 27.16651785, 27.37932037 , 27.54916666 , 27.70587155 , 27.87366094 , 28.08635843 , 28.32825804, 28.59554493 , 28.81636457 , 29.06891822 , 29.2762816  , 29.46864802 , 29.60098668, 29.77360514 , 29.83606604 , 29.82895658 , 29.78802839 , 29.75719819, 29.69090145, 29.6326598  , 29.59234152 , 29.54909959 , 29.5062188  , 29.52674621, 29.53586841, 29.60107318 , 29.70048376 , 29.85805755 , 30.0167485  , 30.14000646, 30.29274443, 30.44494945 , 30.58594896 , 30.74893442 , 30.7821162  , 30.90892165, 31.0179353 , 31.13271756 , 31.20981945 , 31.22006418 , 31.31392759 , 31.34501743, 31.37546575, 31.43273591 , 31.47356484 , 31.53842695 , 31.52923484 , 31.58531733, 31.57713761, 31.6175186,  31.60484885, 31.59479447])
-#
-# curvature = curvature_splines(x, y)
-#
-#
-# plt.figure()
-# # plt.plot(x, abs(curvature))
-# plt.plot(x, curvature)
-# idx0 = argrelextrema(abs(curvature), np.less)
-# idx_min = argrelextrema(curvature, np.less)
-# plt.scatter(x[idx0], curvature[idx0], color='red', s=14, label='zero')
-# plt.scatter(x[idx_min], curvature[idx_min], color='green', s=14, label='min')
-# plt.show()
-#
-# plt.figure()
-# plt.plot(x, y, label='real')
-# # plt.plot(fx(t), fy(t), label='smoothed')
-# plt.scatter(x[idx0], y[idx0], color='red', s=14, label='zero')
-# plt.scatter(x[idx_min], y[idx_min], color='green', s=14, label='min')
-# plt.gca().invert_yaxis()
-# plt.legend()
-# plt.show()
-#
-#
-#

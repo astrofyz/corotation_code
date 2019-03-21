@@ -25,7 +25,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '1237651539800293493'
 # gal_name = '587738946131132437'
 # gal_name = '588017566556225638'
-gal_name = '587732048403824840'
+# gal_name = '587732048403824840'
 # gal_name = '587741490906398723'
 # gal_name = '587736804008722435'
 # gal_name = '588848898849112176'
@@ -34,7 +34,7 @@ gal_name = '587732048403824840'
 # gal_name = '587739707948204093'
 # gal_name = '588007004191326250'
 # gal_name = '587732771864182806'
-# gal_name = '587726033334632485'
+# gal_name = '587726033334632485'  # Хьюстон, у нас проблемы
 # gal_name = '587736584429306061'
 # gal_name = '587729150383161562'
 # gal_name = '587742551759257682'
@@ -42,7 +42,7 @@ gal_name = '587732048403824840'
 # gal_name = '587735349636300832'
 # gal_name = '587737827288809605'
 # gal_name = '587729150383095831'
-# gal_name = '588017990689751059'
+gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -364,11 +364,22 @@ plt.show()
 ### ROTATE AND SCALE IMAGE
 rot_sca_r = rotate_and_scale(real_mag_r, pa, sx=1., sy=1./np.sqrt(1-eps**2))
 
-# plt.figure()
-# plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
-# plt.title(title)
-# plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
-# plt.show()
+plt.figure()
+plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
+# circle:
+angle_space = np.linspace(0., 2*np.pi, 40)
+plt.plot(par_r[-1]/0.396*np.cos(angle_space)+xc, par_r[-1]/0.396*np.sin(angle_space)+yc, label='r', lw=0.2)
+plt.plot(par_g[-1]/0.396*np.cos(angle_space)+xc, par_g[-1]/0.396*np.sin(angle_space)+yc, label='g', lw=0.2)
+plt.plot(par_i[-1]/0.396*np.cos(angle_space)+xc, par_i[-1]/0.396*np.sin(angle_space)+yc, label='i', lw=0.2)
+plt.plot(par_z[-1]/0.396*np.cos(angle_space)+xc, par_z[-1]/0.396*np.sin(angle_space)+yc, label='z', lw=0.2)
+plt.plot(rad_r/0.396*np.cos(angle_space)+xc, rad_r/0.396*np.sin(angle_space)+yc, label='r_cor', lw=0.2, alpha=0.5)
+plt.plot(rad_g/0.396*np.cos(angle_space)+xc, rad_g/0.396*np.sin(angle_space)+yc, label='g_cor', lw=0.2, alpha=0.5)
+plt.plot(rad_i/0.396*np.cos(angle_space)+xc, rad_i/0.396*np.sin(angle_space)+yc, label='i_cor', lw=0.2, alpha=0.5)
+plt.plot(rad_z/0.396*np.cos(angle_space)+xc, rad_z/0.396*np.sin(angle_space)+yc, label='z_cor', lw=0.2, alpha=0.5)
+plt.title(title)
+plt.legend()
+plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
+plt.show()
 
 ### CALCULATE FOURIER HARMONICS
 fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_path)
