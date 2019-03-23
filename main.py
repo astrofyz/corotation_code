@@ -9,6 +9,7 @@ from mpl_toolkits import mplot3d
 import csv
 import numpy.ma as ma
 from astropy.convolution import Gaussian1DKernel, convolve
+import os
 
 # all_table = pd.read_csv('../corotation/clear_outer/all_table1.csv')
 all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
@@ -41,8 +42,8 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '587724648720826467'
 # gal_name = '587735349636300832'
 # gal_name = '587737827288809605'
-# gal_name = '587729150383095831'
-gal_name = '588017990689751059'
+gal_name = '587729150383095831'
+# gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
 title = f"{title_name} \nra={title_ra}, dec={title_dec}"
@@ -294,12 +295,16 @@ par, per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, pa, title=title, fignam
 pa_space = np.linspace(0, np.pi/2., 10)
 
 residual = np.zeros((len(pa_space), int(len(par[0])/2)))
+residual_conv = np.zeros((len(pa_space), int(len(par[0])/2)))
 slits = np.zeros((int(len(pa_space)*2), len(par[0])))
 for i, angle in zip(range(len(pa_space)), pa_space):
-    slit_par, slit_per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, angle, title=title, figname=gal_name)
+    slit_par, slit_per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, angle, title=title, figname=gal_name,
+                              path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
     slits[i] = slit_par[1]
     slits[len(pa_space)+i] = slit_per[1]
     residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
+    residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1])/2)]), conv_rms)-
+                           convolve(np.array(slit_per[1][:int(len(slit_per[1])/2)]), conv_rms))
 
 r = par[0][:]
 # fig = plt.figure()
@@ -318,6 +323,14 @@ plt.title('residuals')
 for i in range(len(pa_space)):
     plt.plot(par[0][:int(len(par[0])/2)]*0.396, residual[i], label=np.round(pa_space[i], 2))
 plt.legend()
+plt.show()
+
+plt.figure()
+plt.title('residuals convolved')
+for i in range(len(pa_space)):
+    plt.plot(par[0][:int(len(par[0])/2)]*0.396, residual_conv[i], label=np.round(pa_space[i], 2))
+plt.legend()
+plt.savefig(out_path+'slit_im_resid/'+gal_name+'/'+'res_conv_'+gal_name+'.png', dpi=92)
 plt.show()
 
 
@@ -382,7 +395,8 @@ plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
 plt.show()
 
 ### CALCULATE FOURIER HARMONICS
-fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_path)
+fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_path,
+                  dir=out_path+'slit_im_resid/'+gal_name+'/')
 
 ### WRITE IN FILE
 # print('hey')

@@ -15,6 +15,8 @@ import warnings
 import numpy.ma as ma
 import cv2
 import scipy.fftpack as fft
+from astropy.convolution import Gaussian1DKernel, convolve
+import os
 
 
 def read_images(name, **kwargs):
@@ -315,8 +317,9 @@ def calc_sb(image, **kwargs):
 
 def slit(image, step, width, centre, rmax, angle, **kwargs):
 
-    # plt.figure()
-    # plt.imshow(image, origin='lower', cmap='Greys')
+
+    f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 2, 1]}, figsize=(8, 12))
+    ax1.imshow(image, origin='lower', cmap='Greys')
 
     step_par = np.array([step*np.cos(angle), step*np.sin(angle)])
     step_per = np.array([step*np.cos(angle+np.pi/2.), step*np.sin(angle+np.pi/2.)])
@@ -344,9 +347,10 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     apertures_par = RectangularAperture(r_par, width, step, angle)
     apertures_per = RectangularAperture(r_per, width, step, angle+np.pi/2.)
 
-    # apertures_par.plot(color='green')
-    # apertures_per.plot(color='red')
-    plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
+    apertures_par.plot(color='green', ax=ax1)
+    apertures_per.plot(color='red', ax=ax1)
+    ax1.set_title(kwargs.get('title')+'\n'+'angle = {}'.format(np.round(angle, 3)))
+    # plt.title(kwargs.get('title')+'\n'+str(np.round(angle, 3)))
     # if 'path' in kwargs:
     #     plt.savefig(kwargs.get('path')+'slit_image/'+kwargs.get('figname')+'_slitim{}.png'.format(np.round(angle, 2)))
     # plt.show()
@@ -360,6 +364,27 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     intense_per = [elem / area for elem in table_per['aperture_sum']]
 
     rad = np.array([k*step for k in range(-i+1, i, 1)])
+
+    if 'conv' in kwargs:
+        ax2.plot(rad*0.396, convolve(np.array(intense_par), kwargs.get('conv')), label='parallel')
+        ax2.plot(rad*0.396, convolve(np.array(intense_per), kwargs.get('conv')), label='perpendicular')
+        ax2.legend()
+        ax2.set_ylim(max(max(intense_par), max(intense_per)), min(min(intense_par), min(intense_per)))
+
+        resid = abs(convolve(np.array(intense_par), kwargs.get('conv')) -
+                                convolve(np.array(intense_per), kwargs.get('conv')))
+        ax3.plot(rad*0.396, resid, label='parallel - perpendicular, sum={}'.format(np.round(sum(resid), 3)))
+        ax3.set_xlabel('r, arcsec')
+        ax3.axhline(0.)
+        ax3.legend()
+        ax3.grid()
+    if ('path' in kwargs) & ('dir' in kwargs):
+        if not os.path.exists(kwargs.get('dir')):
+            os.makedirs(kwargs.get('dir'))
+        plt.savefig(kwargs.get('dir')+'slit_{}.png'.format(int(np.round(angle, 2)*100)), dpi=300)
+    elif ('path' in kwargs) & (not 'dir' in kwargs):
+        plt.savefig(kwargs.get('path')+'slit_image/slit_{}.png'.format(int(np.round(angle, 2)*100)), dpi=300)
+    # plt.show()
     return [rad, intense_par], [rad, intense_per]
 
 
@@ -647,6 +672,8 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     for i in range(len(harmonics)):
         plt.plot(np.linspace(0, len_I, len_I)*0.396, I[i], label=harmonics[i])
     plt.legend()
+    if 'dir' in kwargs:
+        plt.savefig(kwargs.get('dir')+'FH_{}.png'.format(kwargs.get('figname')), dpi=92)
     plt.savefig(kwargs.get('path')+'harmonics/'+kwargs.get('figname')+'_FH.png')
     plt.show()
 
