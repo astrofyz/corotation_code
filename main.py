@@ -294,17 +294,20 @@ par, per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, pa, title=title, fignam
 # попробуем посчитать вычеты по углу:
 pa_space = np.linspace(0, np.pi/2., 10)
 
-residual = np.zeros((len(pa_space), int(len(par[0])/2)))
-residual_conv = np.zeros((len(pa_space), int(len(par[0])/2)))
-slits = np.zeros((int(len(pa_space)*2), len(par[0])))
-for i, angle in zip(range(len(pa_space)), pa_space):
-    slit_par, slit_per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, angle, title=title, figname=gal_name,
+residual, residual_conv = mult_slit(real_mag_r, pa_space, int(len(par[0])/2)), r_max, title=title, figname=gal_name,
                               path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
-    slits[i] = slit_par[1]
-    slits[len(pa_space)+i] = slit_per[1]
-    residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
-    residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1])/2)]), conv_rms)-
-                           convolve(np.array(slit_per[1][:int(len(slit_per[1])/2)]), conv_rms))
+
+# residual = np.zeros((len(pa_space), int(len(par[0])/2)))
+# residual_conv = np.zeros((len(pa_space), int(len(par[0])/2)))
+# slits = np.zeros((int(len(pa_space)*2), len(par[0])))
+# for i, angle in zip(range(len(pa_space)), pa_space):
+#     slit_par, slit_per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, angle, title=title, figname=gal_name,
+#                               path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
+#     slits[i] = slit_par[1]
+#     slits[len(pa_space)+i] = slit_per[1]
+#     residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
+#     residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1])/2)]), conv_rms)-
+#                            convolve(np.array(slit_per[1][:int(len(slit_per[1])/2)]), conv_rms))
 
 r = par[0][:]
 # fig = plt.figure()

@@ -290,29 +290,6 @@ def calc_sb(image, **kwargs):
 
         # print('number of apertures = ', len(intens))
         return (a_out + a_in) / 2., np.array(intens)
-    #
-    # f_max = 5.
-    # while a_out[-1] < sma0*f_max:
-    #     a_in.append(a_in[-1]+step)
-    #     a_out.append(a_out[-1]+step)
-    #     b_out.append(a_out[-1]*np.sqrt(1-eps0**2))
-    #
-    # a_in, a_out, b_out = np.array([a_in, a_out, b_out])
-    #
-    # annulae = []
-    # for a_in_i, a_out_i, b_out_i in zip(a_in, a_out, b_out):
-    #     annulae.append(EllipticalAnnulus((x0, y0), a_in_i, a_out_i, b_out_i, theta=theta0))
-    #
-    # table_aper = aperture_photometry(image, annulae)
-    #
-    # num_apers = len(table_aper.colnames) - 3
-    #
-    # intens = []
-    # for i in range(num_apers):
-    #     intens.append(table_aper['aperture_sum_'+str(i)][0]/annulae[i].area())
-    #
-    # # print('number of apertures = ', len(intens))
-    # return (a_out+a_in)/2., np.array(intens)
 
 
 def slit(image, step, width, centre, rmax, angle, **kwargs):
@@ -373,7 +350,7 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
 
         resid = abs(convolve(np.array(intense_par), kwargs.get('conv')) -
                                 convolve(np.array(intense_per), kwargs.get('conv')))
-        ax3.plot(rad*0.396, resid, label='parallel - perpendicular, sum={}'.format(np.round(sum(resid), 3)))
+        ax3.plot(rad*0.396, resid, label='parallel - perpendicular, sum={}'.format(np.round(sum(residь), 3)))
         ax3.set_xlabel('r, arcsec')
         ax3.axhline(0.)
         ax3.legend()
@@ -425,107 +402,70 @@ def calc_bkg(image, mask, **kwargs):
     return bkg
 
 
-def find_reg(r, ynew, **kwargs):
-    try:
-        max_r = signal.argrelextrema(ynew, np.less)[0]  # magnitude!
-        min_r = signal.argrelextrema(ynew, np.greater)[0]
-        interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
-    except:
-        print('no interval was found!')
-        n = len(r)
-        interval = range(int(n/4), int(n/2), 1)
-    return interval
+# def find_reg(r, ynew, **kwargs):
+#     try:
+#         max_r = signal.argrelextrema(ynew, np.less)[0]  # magnitude!
+#         min_r = signal.argrelextrema(ynew, np.greater)[0]
+#         interval = range(2*min_r[0] - max_r[0], max_r[0], 1)
+#     except:
+#         print('no interval was found!')
+#         n = len(r)
+#         interval = range(int(n/4), int(n/2), 1)
+#     return interval
+
+
+def find_curvature(r, fc, **kwargs):
+    if kwargs.get('spline'):
+        rd1 = r.derivative(1)(t)
+        rd2 = r.derivative(2)(t)
+        sbd1 = fc.derivative(1)(t)
+        sbd2 = fc.derivative(2)(t)
+    else:
+        rd1 = np.gradient(r)
+        rd2 = np.gradient(rd1)
+        sbd1 = np.gradient(fc)
+        sbd2 = np.gradient(sbd1)
+    curvature = (rd1 * sbd2 - sbd1 * rd2) / (rd1 ** 2 + sbd2 ** 2) ** (3. / 2.)
+    return curvature
 
 
 def find_parabola(r, sb, **kwargs):
-    if 's' in kwargs:
-        s = kwargs.get('s')
-    else:
-        s = 0.3
-
-    tck = splrep(r, sb, s=s)
-    ynew = splev(r, tck, der=0)
-
     if 'rmax' in kwargs:
         idxs = np.where(r < kwargs.get('rmax'))
         r = r[idxs]
         sb = sb[idxs]
 
     t = np.arange(len(r))
-    fr = UnivariateSpline(t, r)
-    fsb = UnivariateSpline(t, sb)
-    fr.set_smoothing_factor(kwargs.get('smooth'))
-    fsb.set_smoothing_factor(kwargs.get('smooth'))
+
+    if kwargs.get('spline'):
+        fr = UnivariateSpline(t, r)
+        fsb = UnivariateSpline(t, sb)
+        # if 'std' in kwargs:  ## оно вообще надо???
+        #     fsb = UnivariateSpline(t, sb, 1./kwargs.get('std'))
+        fr.set_smoothing_factor(kwargs.get('smooth'))
+        fsb.set_smoothing_factor(kwargs.get('smooth'))
+        curvature = find_curvature(fr, fsb, spline=True)
 
     if 'conv' in kwargs:
         fsb = kwargs.get('conv')
-        rd1 = np.gradient(r)
-        rd2 = np.gradient(rd1)
-        sbd1 = np.gradient(fsb)
-        sbd2 = np.gradient(sbd1)
-        curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-
-        # print(curvature)
+        curvature = find_curvature(r, fsb)
 
         idxs_valid = np.where(abs(curvature) < 0.1)
         min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]
         zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
-        # print(zero_abs, min_peak, idxs_valid, np.searchsorted(zero_abs, min_peak))
+
         if min_peak > zero_abs[0]:
             low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
             top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
         else:
             low = np.where(abs(curvature) < 0.1)[0][0]
             top = idxs_valid[0][zero_abs[0]]
-
-        # top = np.where(curvature[low:] > 0)[0][0] + low
-        # top_in = signal.argrelextrema(ma.masked_less(curvature[low:], 0), np.greater)[0][0]
-        # top = np.where(curvature == ma.masked_less(curvature[low:], 0).compressed()[top_in])[0][0]
-        # low = 4
-        # top = 10
         print(low, top)
 
         fit_interval = np.arange(low, top, 1)
         fit_r = r[fit_interval]
         fit_sb = sb[fit_interval]
-        # print(fit_r, fit_sb)
         p = np.poly1d(np.polyfit(fit_r * 0.396, fit_sb, deg=2))
-
-
-    # if 'std' in kwargs:
-    #     fsb = UnivariateSpline(t, sb, 1./kwargs.get('std'))
-
-    # if 'grad' in kwargs:
-    #     rd1 = fr.derivative(1)(t)
-    #     rd2 = fr.derivative(2)(t)
-    #     sbd1 = fsb.derivative(1)(t)
-    #     sbd2 = fsb.derivative(2)(t)
-    #     curvature = (rd1*sbd2 - sbd1*rd2) / (rd1**2 + sbd2**2)**(3./2.)
-    #     idx_zero = signal.argrelextrema(abs(curvature), np.less)[0]
-    #     idx_max_neg = signal.argrelextrema(ma.masked_greater(curvature, 0), np.less)[0]
-    #     # print('zero', idx_zero, np.shape(idx_zero))
-    #     # print(idx_max_neg)
-    #     idx_sorted = np.sort(np.concatenate((idx_max_neg, idx_zero), axis=0))
-    #     # print('sort', np.searchsorted(idx_zero, idx_max_neg))
-    #     # print(idx_sorted)
-    #     low = np.searchsorted(idx_zero, idx_max_neg)[0]-1
-    #     top = np.searchsorted(idx_zero, idx_max_neg)[0]+1
-    #     # print(r[idx_sorted[low]]*0.396, r[idx_sorted[top]]*0.396)
-    #
-    #     fit_interval = np.arange(idx_sorted[low], idx_sorted[top], 1)
-    #     fit_r = r[fit_interval]
-    #     fit_sb = sb[fit_interval]
-    #     # print(fit_r, fit_sb)
-    #     p = np.poly1d(np.polyfit(fit_r * 0.396, fit_sb, deg=2))
-
-    #     else:
-    #         fit_interval = np.arange(2*idx_min[0]-idx0[0], idx0[0], 1)
-    #         fit_r = r[fit_interval]
-    #         fit_sb = sb[fit_interval]
-    #     # print(fit_interval)
-    #     # approx_min, approx_max = interval_grad(r, ynew)
-    # else:
-    #     fit_interval = find_reg(r, ynew, s=kwargs.get('s'), path=kwargs.get('path'), figname=kwargs.get('figname'))
 
     f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
     ax1.plot(r*0.396, sb, color='darkred', lw=1, label='profile')
@@ -540,7 +480,7 @@ def find_parabola(r, sb, **kwargs):
     ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
     ax1.legend()
     ax1.set_ylim(max(sb), min(sb))
-    # plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
+    plt.savefig(kwargs.get('path') + 'interval/' + kwargs.get('figname') + '_int.png')
 
     ax2.scatter(r*0.396, abs(curvature), s=14, label='|curvature|')
     ax2.scatter(r*0.396, (curvature), s=14, label='curvature')
@@ -550,7 +490,7 @@ def find_parabola(r, sb, **kwargs):
     plt.show()
 
     return fit_r*0.396, p(fit_r*0.396), r[idxs_valid[0][-1]]*0.396
-    # return r*0.396, fsb
+
 
 def find_outer(image, centre, **kwargs):
     """ image = segmentation map with main object == 1"""
@@ -686,3 +626,21 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     # plt.show()
 
     return I
+
+
+def mult_slit(image, pa_space, len_r, r_max, **kwargs):
+    residual = np.zeros((len(pa_space), len_r))
+    residual_conv = np.zeros((len(pa_space), len_r))
+    slits = np.zeros((int(len(pa_space) * 2), len_r*2))
+    for i, angle in zip(range(len(pa_space)), pa_space):
+        # slit_par, slit_per = slit(image, 1.2, 3.5, [256, 256], rmax=rmax, angle=angle, title=title, figname=figname,
+        #                           path=path, conv=conv, dir=dir)
+        slit_par, slit_per = slit(image, 1.2, 3.5, [256, 256], rmax=r_max, angle=angle, **kwargs)  # будет ли это работать так, как я хочу?
+        slits[i] = slit_par[1]
+        slits[len(pa_space) + i] = slit_per[1]
+        residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1]) / 2)]) -
+                          np.array(slit_per[1][:int(len(slit_per[1]) / 2)]))
+        residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1]) / 2)]), kwargs.get('conv')) -
+                               convolve(np.array(slit_per[1][:int(len(slit_per[1]) / 2)]), kwargs.get('conv')))
+
+    return residual, residual_conv
