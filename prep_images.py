@@ -294,7 +294,6 @@ def calc_sb(image, **kwargs):
 
 def slit(image, step, width, centre, rmax, angle, **kwargs):
 
-
     f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 2, 1]}, figsize=(8, 12))
     ax1.imshow(image, origin='lower', cmap='Greys')
 
@@ -304,14 +303,14 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
     parallel = [centre]  # сюда я хочу записывать центры прямоугольников
     perpendicular = [centre]  # и сюда тоже
 
-    i = 1
     dr = 0
+    i = 1
     while dr < rmax:
         parallel.append(centre+i*step_par)
         parallel.append(centre-i*step_par)
         perpendicular.append(centre + i * step_per)
         perpendicular.append(centre - i * step_per)
-        dr = np.sqrt(np.dot(i*step_par, i*step_par))
+        dr += step
         i += 1
 
     parallel = np.array(parallel)
@@ -350,7 +349,7 @@ def slit(image, step, width, centre, rmax, angle, **kwargs):
 
         resid = abs(convolve(np.array(intense_par), kwargs.get('conv')) -
                                 convolve(np.array(intense_per), kwargs.get('conv')))
-        ax3.plot(rad*0.396, resid, label='parallel - perpendicular, sum={}'.format(np.round(sum(residь), 3)))
+        ax3.plot(rad*0.396, resid, label='parallel - perpendicular, sum={}'.format(np.round(sum(resid), 3)))
         ax3.set_xlabel('r, arcsec')
         ax3.axhline(0.)
         ax3.legend()
@@ -628,19 +627,18 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, **kwargs):
     return I
 
 
-def mult_slit(image, pa_space, len_r, r_max, **kwargs):
+def mult_slit(image, pa_space, len_r, r_max, step=1.2, width=3.5, **kwargs):
     residual = np.zeros((len(pa_space), len_r))
     residual_conv = np.zeros((len(pa_space), len_r))
-    slits = np.zeros((int(len(pa_space) * 2), len_r*2))
+    slits = np.zeros((int(len(pa_space) * 2), len_r*2+1))
     for i, angle in zip(range(len(pa_space)), pa_space):
         # slit_par, slit_per = slit(image, 1.2, 3.5, [256, 256], rmax=rmax, angle=angle, title=title, figname=figname,
         #                           path=path, conv=conv, dir=dir)
-        slit_par, slit_per = slit(image, 1.2, 3.5, [256, 256], rmax=r_max, angle=angle, **kwargs)  # будет ли это работать так, как я хочу?
+        slit_par, slit_per = slit(image, step, width, [256, 256], rmax=r_max, angle=angle, **kwargs)  # будет ли это работать так, как я хочу?
         slits[i] = slit_par[1]
         slits[len(pa_space) + i] = slit_per[1]
         residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1]) / 2)]) -
                           np.array(slit_per[1][:int(len(slit_per[1]) / 2)]))
-        residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1]) / 2)]), kwargs.get('conv')) -
+        residual_conv[i] = (convolve(np.array(slit_par[1][:int(len(slit_par[1]) / 2)]), kwargs.get('conv')) -
                                convolve(np.array(slit_per[1][:int(len(slit_per[1]) / 2)]), kwargs.get('conv')))
-
     return residual, residual_conv

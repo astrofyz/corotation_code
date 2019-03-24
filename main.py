@@ -37,12 +37,12 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '587732771864182806'
 # gal_name = '587726033334632485'  # Хьюстон, у нас проблемы
 # gal_name = '587736584429306061'
-# gal_name = '587729150383161562'
+gal_name = '587729150383161562'
 # gal_name = '587742551759257682'
 # gal_name = '587724648720826467'
 # gal_name = '587735349636300832'
 # gal_name = '587737827288809605'
-gal_name = '587729150383095831'
+# gal_name = '587729150383095831'
 # gal_name = '588017990689751059'
 
 title_name, title_ra, title_dec = all_table.loc[all_table.objid14 == int(gal_name), ['name', 'ra', 'dec']].values[0]
@@ -289,34 +289,31 @@ a_ug.set_xlabel('r (arcsec)')
 plt.savefig(out_path+'sb_profile/'+gal_name+'_sb_prof.png')
 plt.show()
 
+step = 1.2
+width = 3.5
 par, per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, pa, title=title, figname=gal_name, path=out_path)
 
 # попробуем посчитать вычеты по углу:
 pa_space = np.linspace(0, np.pi/2., 10)
 
-residual, residual_conv = mult_slit(real_mag_r, pa_space, int(len(par[0])/2)), r_max, title=title, figname=gal_name,
-                              path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
+residual, residual_conv = mult_slit(real_mag_r, pa_space, int(len(par[0])/2), r_max, step, width, title=title, figname=gal_name,
+                                    path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
 
-# residual = np.zeros((len(pa_space), int(len(par[0])/2)))
-# residual_conv = np.zeros((len(pa_space), int(len(par[0])/2)))
-# slits = np.zeros((int(len(pa_space)*2), len(par[0])))
-# for i, angle in zip(range(len(pa_space)), pa_space):
-#     slit_par, slit_per = slit(real_mag_r, 1.2, 3.5, [256, 256], r_max, angle, title=title, figname=gal_name,
-#                               path=out_path, conv=conv_rms, dir=out_path+'slit_im_resid/'+gal_name+'/')
-#     slits[i] = slit_par[1]
-#     slits[len(pa_space)+i] = slit_per[1]
-#     residual[i] = abs(np.array(slit_par[1][:int(len(slit_par[1])/2)]) - np.array(slit_per[1][:int(len(slit_per[1])/2)]))
-#     residual_conv[i] = abs(convolve(np.array(slit_par[1][:int(len(slit_par[1])/2)]), conv_rms)-
-#                            convolve(np.array(slit_per[1][:int(len(slit_per[1])/2)]), conv_rms))
+idx = np.argmax([sum(abs(row)) for row in residual_conv])
+if sum(residual_conv[idx]) > 0:
+    angle_max = pa_space[idx]
+else:
+    angle_max = (pa_space[idx] + np.pi/2.)
+print('angle = ', angle_max)
 
-r = par[0][:]
+# r = par[0][:]
 # fig = plt.figure()
-theta = np.linspace(0, np.pi, 2*len(pa_space))
-ax = plt.axes(projection='3d')
-for i in range(len(slits)):
-    ax.plot3D((r*np.sin(theta[i])), (r*np.cos(theta[i])), convolve(np.array(slits[i]), conv_rms))
-ax.set_zlim(30, 18)
-plt.show()
+# theta = np.linspace(0, np.pi, 2*len(pa_space))
+# ax = plt.axes(projection='3d')
+# for i in range(len(slits)):
+#     ax.plot3D((r*np.sin(theta[i])), (r*np.cos(theta[i])), convolve(np.array(slits[i]), conv_rms))
+# ax.set_zlim(30, 18)
+# plt.show()
 
 
 print(np.unravel_index(np.argmax(residual, axis=None), residual.shape))
@@ -378,7 +375,7 @@ plt.ylabel('$\mu[r] \quad (mag\:arcsec^{-2})$')
 plt.show()
 
 ### ROTATE AND SCALE IMAGE
-rot_sca_r = rotate_and_scale(real_mag_r, pa, sx=1., sy=1./np.sqrt(1-eps**2))
+rot_sca_r = rotate_and_scale(real_mag_r, angle_max, sx=1., sy=1./np.sqrt(1-eps**2))
 
 plt.figure()
 plt.imshow(rot_sca_r, origin='lower', cmap='Greys')
@@ -396,6 +393,7 @@ plt.title(title)
 plt.legend()
 plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
 plt.show()
+
 
 ### CALCULATE FOURIER HARMONICS
 fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_path,
