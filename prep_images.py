@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.ndimage.interpolation import affine_transform
 from scipy.ndimage.filters import gaussian_filter, median_filter
