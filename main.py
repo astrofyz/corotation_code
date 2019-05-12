@@ -30,14 +30,14 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 # gal_name = '587741490906398723'
 # gal_name = '587736804008722435'
 # gal_name = '588848898849112176'
-# gal_name = '588011124118585393'
+gal_name = '588011124118585393'
 # gal_name = '587741490893684878'
 # gal_name = '587739707948204093'
 # gal_name = '588007004191326250'
 # gal_name = '587732771864182806'
 # gal_name = '587726033334632485'  # Хьюстон, у нас проблемы
 # gal_name = '587736584429306061'
-gal_name = '587729150383161562'
+# gal_name = '587729150383161562'
 # gal_name = '587742551759257682'
 # gal_name = '587724648720826467'
 # gal_name = '587735349636300832'
@@ -315,7 +315,6 @@ print('angle = ', angle_max)
 # ax.set_zlim(30, 18)
 # plt.show()
 
-
 print(np.unravel_index(np.argmax(residual, axis=None), residual.shape))
 
 plt.figure()
@@ -332,6 +331,14 @@ for i in range(len(pa_space)):
 plt.legend()
 plt.savefig(out_path+'slit_im_resid/'+gal_name+'/'+'res_conv_'+gal_name+'.png', dpi=92)
 plt.show()
+
+
+dispersion = np.zeros(np.shape(residual_conv)[1])
+for res, i in zip(residual_conv.T, range(len(dispersion))):
+    dispersion[i] = np.std(res)
+
+print('min disp: ', np.argmin(dispersion), par[0][:int(len(par[0])/2)][np.argmin(dispersion)])
+rad_min_disp = par[0][:int(len(par[0])/2)][np.argmin(dispersion)]
 
 
 par, per = slit(real_mag_r, 0.7, 2.5, [256, 256], r_max, pa_space[8], title=title, figname=gal_name, path=out_path)
@@ -389,6 +396,8 @@ plt.plot(rad_r/0.396*np.cos(angle_space)+xc, rad_r/0.396*np.sin(angle_space)+yc,
 plt.plot(rad_g/0.396*np.cos(angle_space)+xc, rad_g/0.396*np.sin(angle_space)+yc, label='g_cor', lw=0.2, alpha=0.5)
 plt.plot(rad_i/0.396*np.cos(angle_space)+xc, rad_i/0.396*np.sin(angle_space)+yc, label='i_cor', lw=0.2, alpha=0.5)
 plt.plot(rad_z/0.396*np.cos(angle_space)+xc, rad_z/0.396*np.sin(angle_space)+yc, label='z_cor', lw=0.2, alpha=0.5)
+plt.plot(rad_min_disp*np.cos(angle_space)+xc, rad_min_disp*np.sin(angle_space)+yc, label='rad_min_disp', lw=0.2,
+         alpha=0.9, linestyle='--')
 plt.title(title)
 plt.legend()
 plt.savefig(out_path+'rot_scale_image/' + gal_name + '_rs.png')
@@ -422,30 +431,3 @@ fourier_harmonics(rot_sca_r, [2, 4], rmax=2.*r_max, figname=gal_name, path=out_p
 #     csvfile.close()
 
 #####################################################################################################################
-# unsharp_mask(real_mag_r_sh)
-
-# len_par = int(len(par[0])/2+1)
-# print(par[0][-len_par:], len(par[0]))
-# grad_par = np.gradient(par_filt[-len_par:], par[0][-len_par:])
-# print(grad_par)
-#
-# plt.figure()
-# plt.plot(par[0][-len_par:]*0.396, grad_par)
-# idx_min = argrelextrema(grad_par, np.less)
-# plt.scatter(par[0][-len_par:][idx_min]*0.396, grad_par[idx_min], color='orange')
-# print(idx_min)
-# print(par[0][-len_par:][idx_min]*0.396)
-# plt.show()
-#
-# plt.figure()
-# plt.scatter(par[0][-len_par:]*0.396, par_filt[-len_par:], color='navy', lw=3)
-#
-# dlt = 3.5
-# for x, y, df in zip(par[0][-len_par:], par_filt[-len_par:], grad_par):
-#     xr = np.linspace(x-dlt, x+dlt, 10)
-#     yr = y + df*(xr-x)
-#     plt.plot(xr*0.396, yr, lw=1, linestyle='dashed', color='orange')
-# plt.scatter(par[0][-len_par:][idx_min]*0.396, par_filt[-len_par:][idx_min], color='red')
-# plt.gca().invert_yaxis()
-# plt.show()
-
