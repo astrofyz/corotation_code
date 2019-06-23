@@ -28,7 +28,6 @@ def bar_model():
     return log_img
 
 
-
 all_table = pd.read_csv('/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv')
 path = '/media/mouse13/My Passport/corotation/buta_gal/image'
 out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
