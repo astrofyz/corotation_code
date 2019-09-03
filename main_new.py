@@ -1,0 +1,36 @@
+from module_read import *
+import pandas as pd
+from scipy.interpolate import splrep, splev
+from scipy.ndimage import shift
+from astropy.wcs import wcs
+from scipy.signal import argrelextrema
+import scipy.signal as signal
+from mpl_toolkits import mplot3d
+import csv
+import numpy.ma as ma
+from astropy.convolution import Gaussian1DKernel, convolve
+import os
+from contextlib import contextmanager
+
+table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
+im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
+
+images = read_images(names=['587739707948204093', '588011124118585393'], bands='all', types='all', path=im_path)
+
+
+@contextmanager
+def figure(*a, **kw):
+    fig = plt.figure()
+    yield fig
+    if 'title' in kw:
+        plt.title(kw.get('title'))
+    if 'xlabel' in kw:
+        plt.xlabel(kw.get('xlabel'))
+    if 'ylabel' in kw:
+        plt.xlabel(kw.get('ylabel'))
+    plt.show()
+
+# with figure() as fig:
+#     plt.imshow(images[0]['r']['obj'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+
