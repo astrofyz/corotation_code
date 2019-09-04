@@ -236,6 +236,8 @@ def calc_sb(image, **kwargs):
     image - image 2D array
     step - width of elliptical annulus
     f_max - maximal semimajor axis / sma_catalog
+
+    :returns radial array and surface brightness profile along it; (in pixels?) + errors if bg_rms  in **kw
     """
     x0 = kwargs.get('x')
     y0 = kwargs.get('y')

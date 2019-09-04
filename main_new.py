@@ -45,5 +45,11 @@ def figure(*a, **kw):
 
 # print([images[band]['bg'].background_rms_median for band in ['g', 'i', 'r', 'u', 'z']])
 
-find_outer(images['r']['mask.center'], plot=True)
+find_outer(images['r']['mask.center'], plot=True)  # это очень плохая и неудобная функция
 
+images['r'].prop(['r.max.pix', 'r.min.pix'], data=find_outer(images['r']['mask.center'])[:2])
+
+print(images['r']['r.max.pix'])
+print(images['r']['r.min.pix'])
+
+# дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара

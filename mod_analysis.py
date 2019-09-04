@@ -24,11 +24,13 @@ from mod_read import *
 
 
 def find_outer(image, **kwargs):
-    """ image : segmentation map with main object == 1 or instance of image class
+    """ image : segmentation map with main object == 1 (or instance of image class (to be added))
     returns : r_max (0.99th quantile), r_min(0.05th quantile), FD bin """
 
-    if isinstance(image, ImageClass):
-        image =
+    # if isinstance(image, ImageClass):
+    #     image =
+    # вот это сделать функцией, которая работает только с изображением, а не с классом. и считать.
+    #а можно ли делать перенаправление какое-нибудь? чтобы функция замещалась при определенном аргументе?
     idx_main = np.array(np.where(image == 1))
     centre = np.array([int(dim / 2) for dim in np.shape(image)])
     r = np.array([np.sqrt(np.dot(centre-idx_main.T[i], centre-idx_main.T[i])) for i in range(len(idx_main.T))])
@@ -36,8 +38,7 @@ def find_outer(image, **kwargs):
     FD_bin = 2*(np.quantile(r, 0.75) - np.quantile(r, 0.25))/(len(r))**(1./3.)  # ¯\_(ツ)_/¯
 
     if 'plot' in kwargs:
-        if isinstance(image, ImageClass):
-            if 'r'
+        # реализовать плот отдельной функцией
         plt.figure()
         r_edges = np.arange(np.amin(r), np.amax(r), FD_bin)
         plt.hist(r, bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
@@ -51,8 +52,6 @@ def find_outer(image, **kwargs):
             plt.title(kwargs.get('title'))
         plt.xlabel('r (pix)')
         plt.legend()
-        # plt.savefig(kwargs.get('path') + 'rmax_hist/' + kwargs.get('figname') + '_rmax.png')
         plt.show()
 
-    else:
-        return r_max, r_min, FD_bin
+    return r_max, r_min, FD_bin
