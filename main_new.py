@@ -16,7 +16,7 @@ table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_
 im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
 out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 
-images = read_images(names=['587739707948204093', '588011124118585393'], bands='all', types='all', path=im_path)
+images = read_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
 
 
 @contextmanager
@@ -33,4 +33,11 @@ def figure(*a, **kw):
 
 # with figure() as fig:
 #     plt.imshow(images[0]['r']['obj'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+# print(images['r'].prop(['x.real', 'y.real']))
+# print(images['r']['y.real']
 
+with figure() as fig:
+    plt.imshow(images['r']['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+
+with figure() as fig:
+    plt.imshow(images['r']['real.mag'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LinearStretch()))

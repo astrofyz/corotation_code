@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
+from astropy.wcs import wcs
+from scipy.ndimage import shift
 import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.ndimage.interpolation import affine_transform
 from scipy.ndimage.filters import gaussian_filter, median_filter
 from astropy.io import fits
-from astropy.visualization import LogStretch
+from astropy.visualization import LogStretch, LinearStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 # from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
@@ -41,11 +43,26 @@ class ImageClass(dict):
 
     def prop(self, property_name, **kw):
         if 'data' in kw:
-            self[property_name] = kw.get('data')
-        if property_name not in self:
-            print('Error: Property keyword doesn\'t exist')
+            if isinstance(property_name, list):
+                for name, i in zip(property_name, range(len(property_name))):
+                    self[name] = kw.get('data')[i]  #check if len(data) correspond to len(property_name)
+            else:
+                self[property_name] = kw.get('data')
+
+        # if any(['+', '-', '*', '/']) in property_name:
+            #write arithmetical expressions parser
+
+        if isinstance(property_name, str):
+            if property_name not in self:
+                print('Error: Property keyword doesn\'t exist')
+            else:
+                return self[property_name]
         else:
-            return self[property_name]
+            # print(property_name, self.keys())
+            # if all(property_name) not in self.keys():
+            #     print('Error: Property keywords doesn\'t exist')
+            # else:
+            return [self[name] for name in property_name]
 
 
 def read_images(names, bands='all', types='all',
@@ -76,7 +93,7 @@ def read_images(names, bands='all', types='all',
                 image[band].prop(prop_name, data=image[prop_name])
             for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
                 image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
-                                                               [prop_name+'_{}'.format(band)]].values[0][0])
+                                                               [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
 
             for tp in types:
                 if tp != 'real':
@@ -90,9 +107,37 @@ def read_images(names, bands='all', types='all',
                 else:
                     image[band].prop(property_name=tp, data=fits.open(fname))
                 fits.open(fname).close()
-        if len(names) == 1:
-            images = image
-        else:
-            images.append(image)
+        images.append(image)
 
-    return images
+    max_seeing = max([image[band]['seeing'] for band in bands])
+    for band in bands:
+        if image[band]['seeing'] != max_seeing:
+            image[band]['real'] = correct_FWHM(image[band], max_seeing)
+
+    for image in images:
+        for band in bands:
+            w = wcs.WCS(image[band]['real.header'])
+            image[band].prop(property_name=['x.real', 'y.real'],
+                             data=np.array(w.wcs_world2pix(image[band]['ra'], image[band]['dec'], 1)).flatten())
+            xc, yc = [int(dim / 2) for dim in np.shape(image[band]['real'])]
+            image[band].prop('mask', data=main_obj(cat=image[band]['cat'],
+                                                   mask=image[band]['seg'],
+                                                   xy=image[band].prop(['x.real', 'y.real'])))
+            image[band].prop('mask.center', data=shift(image[band]['mask'],
+                                                       [yc-image[band]['y.real'], xc-image[band]['x.real']], mode='nearest'))
+            image[band].prop('real.center', data=shift(image[band]['real'],
+                                                       [yc - image[band]['y.real'], xc - image[band]['x.real']],
+                                                       mode='nearest'))
+            image[band].prop('seg.center', data=shift(image[band]['seg'],
+                                                      [yc - image[band]['y.real'], xc - image[band]['x.real']],
+                                                      mode='nearest'))
+            image[band].prop('bg', data=calc_bkg(image[band]['real.center'], image[band]['seg.center'], mode='nearest'))
+            image[band].prop('real.bg', data=image[band]['real'] - image[band]['bg'].background)
+            Apix = 0.396
+            image[band].prop('zp', data=-(image[band]['aa']+image[band]['kk']*image[band]['airmass']) + 2.5*np.log10(Apix))
+            image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp']))
+
+    if len(images) == 1:
+        return images[0]
+    else:
+        return images
