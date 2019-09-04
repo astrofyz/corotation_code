@@ -20,6 +20,7 @@ import scipy.fftpack as fft
 from astropy.convolution import Gaussian1DKernel, convolve
 import os
 
+
 def main_obj(cat, mask, **kwargs):
     """cat - catalog file, mask - image of segmentation file
     kwargs:

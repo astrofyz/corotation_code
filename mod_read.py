@@ -22,7 +22,7 @@ import cv2
 import scipy.fftpack as fft
 from astropy.convolution import Gaussian1DKernel, convolve
 import os
-from module_prep_im import *
+from mod_prep_im import *
 
 
 class ImageClass(dict):
@@ -65,7 +65,7 @@ class ImageClass(dict):
             return [self[name] for name in property_name]
 
 
-def read_images(names, bands='all', types='all',
+def make_images(names, bands='all', types='all',
             path_table='/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv',
             path='/home/mouse13/corotation/clear_outer', **kwargs):
     """names : string of 19 digits; if list - list of dictionaries returned, else - dictionary class;

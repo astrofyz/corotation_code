@@ -1,4 +1,5 @@
-from module_read import *
+from mod_read import *
+from mod_analysis import *
 import pandas as pd
 from scipy.interpolate import splrep, splev
 from scipy.ndimage import shift
@@ -16,8 +17,7 @@ table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_
 im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
 out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 
-images = read_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
-
+images = make_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
 
 @contextmanager
 def figure(*a, **kw):
@@ -36,8 +36,14 @@ def figure(*a, **kw):
 # print(images['r'].prop(['x.real', 'y.real']))
 # print(images['r']['y.real']
 
-with figure() as fig:
-    plt.imshow(images['r']['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+# with figure() as fig:
+#     plt.imshow(images['r']['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+#
+# with figure() as fig:
+#     plt.imshow(images['r']['real.mag'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LinearStretch()))
 
-with figure() as fig:
-    plt.imshow(images['r']['real.mag'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LinearStretch()))
+
+# print([images[band]['bg'].background_rms_median for band in ['g', 'i', 'r', 'u', 'z']])
+
+find_outer(images['r']['mask.center'], plot=True)
+
