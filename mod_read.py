@@ -62,12 +62,12 @@ class ImageClass(dict):
         if all(['r.' not in key.lower() for key in self.keys()]):
             self.prop(['r.hist.pix', 'r.max.pix', 'r.min.pix', 'FD'], data=find_outer(self))
         plt.figure()
-        r_edges = np.arange(np.amin(self['r']), np.amax(self['r']), self['FD'])
+        r_edges = np.arange(np.amin(self['r.min.pix']), np.amax(self['r.max.pix']), self['FD'])
         plt.hist(self['r.hist.pix'], bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
         plt.axvline(self['r.max.pix'], color='red', label='$r_{max}$')
         plt.axvline(self['r.min.pix'], color='darkorange', label='$r_{min}$')
-        plt.axvline(self['petroRad'], color='indigo', label='petroRad')
-        plt.axvline(self['petroR50'], color='green', label='petroR50')
+        plt.axvline(self['petroRad']/0.396, color='indigo', label='petroRad')
+        plt.axvline(self['petroR50']/0.396, color='green', label='petroR50')
         plt.title(self['name'])
         plt.xlabel('r (pix)')
         plt.legend()
@@ -141,7 +141,7 @@ def make_images(names, bands='all', types='all',
                                                       [yc - image[band]['y.real'], xc - image[band]['x.real']],
                                                       mode='nearest'))
             image[band].prop('bg', data=calc_bkg(image[band]['real.center'], image[band]['seg.center'], mode='nearest'))
-            image[band].prop('real.bg', data=image[band]['real'] - image[band]['bg'].background)
+            image[band].prop('real.bg', data=image[band]['real.center'] - image[band]['bg'].background)
             Apix = 0.396
             image[band].prop('zp', data=-(image[band]['aa']+image[band]['kk']*image[band]['airmass']) + 2.5*np.log10(Apix))
             image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp']))

@@ -45,15 +45,34 @@ def figure(**kw):
 
 # print([images[band]['bg'].background_rms_median for band in ['g', 'i', 'r', 'u', 'z']])
 
-# проверить вот эти все штуки
+# проверить вот эти все штуки --- роботоют
 # images['r'].plot_hist_r()
 # print(find_outer(images['r']))
 # print(find_outer(images['r']['mask.center']))
-# images['r'].prop(['r.max.pix', 'r.min.pix'], data=find_outer(images['r']['mask.center'])[:2])
+# images['r'].prop(['r.max.pix', 'r.min.pix'], data=find_outer(images['r']['mask.center'][1:3]))
 # print(images['r']['r.max.pix'])
 # print(images['r']['r.min.pix'])
 # images['r'].plot_hist_r()
+# print(images['r']['FD'])
+# print(images['r']['bg'].background_rms_median)
+# print(images['r']['bg'].background_median)
+# print(images['r']['bg'].background_rms)
+# ellipse_fit(images['r'], maxsma=True)
+# ellipse_fit(images['r'], fflag=True)
+# ellipse_fit(images['r'], maxgerr=True)
+# ellipse_fit(images['r'], maxgerr=True)
+# for band in ['g', 'i', 'r', 'u', 'z']:
+#     calc_sb(images[band], error=True)
+# print(images['r']['sb.rad.pix'])
+# print(images['r']['sb'])
+# print(images['r']['sb.err'])
 
+# with figure() as fig:
+#     plt.title(images['name'])
+#     for band in ['g', 'i', 'r', 'u', 'z']:
+#         plt.plot(images[band]['sb.rad.pix'], images[band]['sb'])
+#     plt.gca().invert_yaxis()
 
+find_parabola(images['r'])
 
 # дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара
