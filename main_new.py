@@ -20,7 +20,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 images = make_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
 
 @contextmanager
-def figure(*a, **kw):
+def figure(**kw):
     fig = plt.figure()
     yield fig
     if 'title' in kw:
@@ -45,11 +45,15 @@ def figure(*a, **kw):
 
 # print([images[band]['bg'].background_rms_median for band in ['g', 'i', 'r', 'u', 'z']])
 
-find_outer(images['r']['mask.center'], plot=True)  # это очень плохая и неудобная функция
+# проверить вот эти все штуки
+# images['r'].plot_hist_r()
+# print(find_outer(images['r']))
+# print(find_outer(images['r']['mask.center']))
+# images['r'].prop(['r.max.pix', 'r.min.pix'], data=find_outer(images['r']['mask.center'])[:2])
+# print(images['r']['r.max.pix'])
+# print(images['r']['r.min.pix'])
+# images['r'].plot_hist_r()
 
-images['r'].prop(['r.max.pix', 'r.min.pix'], data=find_outer(images['r']['mask.center'])[:2])
 
-print(images['r']['r.max.pix'])
-print(images['r']['r.min.pix'])
 
 # дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара

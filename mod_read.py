@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from astropy.wcs import wcs
 from scipy.ndimage import shift
+from mod_analysis import *
 import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -32,14 +33,7 @@ class ImageClass(dict):
         self['objid'] = 'objid dr7'
         self['ra'] = 0.
         self['dec'] = 0.
-        self = dict()
-    #     self['gain'] = 0.
-    #     self['kk'] = 0.
-    #     self['airmass'] = 0.
-    #     self['aa'] = 0.
-    #     self['seeing'] = 0.
-    #     self['petroRad'] = 0.
-    #     self['petroR50'] = 0.
+        self = dict()  # а как сделать нормально?
 
     def prop(self, property_name, **kw):
         if 'data' in kw:
@@ -63,6 +57,21 @@ class ImageClass(dict):
             #     print('Error: Property keywords doesn\'t exist')
             # else:
             return [self[name] for name in property_name]
+
+    def plot_hist_r(self):
+        if all(['r.' not in key.lower() for key in self.keys()]):
+            self.prop(['r.hist.pix', 'r.max.pix', 'r.min.pix', 'FD'], data=find_outer(self))
+        plt.figure()
+        r_edges = np.arange(np.amin(self['r']), np.amax(self['r']), self['FD'])
+        plt.hist(self['r.hist.pix'], bins=r_edges, density=True, alpha=0.5, color='lightseagreen')
+        plt.axvline(self['r.max.pix'], color='red', label='$r_{max}$')
+        plt.axvline(self['r.min.pix'], color='darkorange', label='$r_{min}$')
+        plt.axvline(self['petroRad'], color='indigo', label='petroRad')
+        plt.axvline(self['petroR50'], color='green', label='petroR50')
+        plt.title(self['name'])
+        plt.xlabel('r (pix)')
+        plt.legend()
+        plt.show()
 
 
 def make_images(names, bands='all', types='all',
@@ -97,7 +106,7 @@ def make_images(names, bands='all', types='all',
 
             for tp in types:
                 if tp != 'real':
-                    fname = '/'.join([path, 'se_frames', band, tp, band+name+'-'+dict_type[tp]+'.fits'])
+                    fname = '/'.join([path, 'se_frames', band, tp, band+name+'-'+dict_type[tp]+'.fits'])  # возможно это стоит изменить
                 else:
                     fname = '/'.join([path, band, 'stamps128', band+name+'.fits'])
 
