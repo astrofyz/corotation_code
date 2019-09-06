@@ -73,6 +73,19 @@ def figure(**kw):
 #         plt.plot(images[band]['sb.rad.pix'], images[band]['sb'])
 #     plt.gca().invert_yaxis()
 
-find_parabola(images['r'])
+for band in ['g', 'i', 'r', 'u', 'z']:
+    find_parabola(images[band])
+# print(images['r']['sb.rad.fit'])
+# print(images['r']['sb.rad.min'])
+print(images['name'], images['ra'])
+with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$') as fig:
+    plt.title('{}\n ra={}; dec={}'.format(images['name'], np.round(images['ra'],3), np.round(images['dec'], 3)))
+    plt.gca().invert_yaxis()
+    for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
+        plt.plot(images[band]['sb.rad.pix']*0.396, images[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(images[band]['sb.rad.min'], 3)))
+        plt.fill_between(images[band]['sb.rad.pix']*0.396, images[band]['sb']-images[band]['sb.err'], images[band]['sb']+images[band]['sb.err'], color=color,  alpha=0.2)
+        plt.plot(images[band]['sb.rad.fit']*0.396, images[band]['sb.fit'], color='k')
+        plt.axvline(images[band]['sb.rad.min']*0.396, color=color)
+    plt.legend()
 
 # дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара

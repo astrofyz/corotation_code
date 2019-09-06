@@ -13,6 +13,7 @@ from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, apert
 from photutils.utils import calc_total_error
 from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
+import scipy.optimize as opt
 import warnings
 import numpy.ma as ma
 import cv2
@@ -230,23 +231,26 @@ def find_parabola(image, **kw):
     fit_sb = image['sb'][low:top+1]
     p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
 
-    f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
-    ax1.plot(image['sb.rad.pix'], image['sb'], color='darkred', lw=1, label='profile')
-    ax1.plot(image['sb.rad.pix'], sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
-    ax1.plot(fit_r, p(fit_r), color='k', label='approx')
-    ax1.axvline(image['sb.rad.pix'][low])
-    ax1.axvline(image['sb.rad.pix'][top])
-    ax1.set_xlabel('r (arcsec)')
-    ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-    ax1.legend()
-    ax1.set_ylim(max(image['sb']), min(image['sb']))
-    ax2.scatter(image['sb.rad.pix'], abs(curvature), s=14, label='|curvature|')
-    ax2.scatter(image['sb.rad.pix'], curvature, s=14, label='curvature')
-    ax2.axhline(0.)
-    ax2.legend()
-    plt.grid()
-    plt.show()
+    if 'plot' in kw:
+        f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
+        ax1.plot(image['sb.rad.pix'], image['sb'], color='darkred', lw=1, label='profile')
+        ax1.plot(image['sb.rad.pix'], sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
+        ax1.plot(fit_r, p(fit_r), color='k', label='approx')
+        ax1.axvline(image['sb.rad.pix'][low])
+        ax1.axvline(image['sb.rad.pix'][top])
+        ax1.set_xlabel('r (arcsec)')
+        ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+        ax1.legend()
+        ax1.set_ylim(max(image['sb']), min(image['sb']))
+        ax2.scatter(image['sb.rad.pix'], abs(curvature), s=14, label='|curvature|')
+        ax2.scatter(image['sb.rad.pix'], curvature, s=14, label='curvature')
+        ax2.axhline(0.)
+        ax2.legend()
+        plt.grid()
+        plt.show()
     # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его
+    image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
+               data=[fit_r, p(fit_r), opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x])
     return fit_r, p(fit_r), image['sb.rad.pix'][idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
