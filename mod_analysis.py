@@ -254,6 +254,67 @@ def find_parabola(image, **kw):
     return fit_r, p(fit_r), image['sb.rad.pix'][idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
+def slit(image, n_slit, angle, step=1.2, width=3.5, **kw):
+    """image : instance of ImageClass
+    n_slit : number of slits
+    angle : starting angle
+    step : distance between two succesive apertures along radius
+    width : width of slit"""
+
+    slits = []
+    centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    slit_par = [centre]
+    slit_per = [centre]
+    pa_space = np.linspace(0, np.pi/2., n_slit)
+
+    for i in range(n_slit):
+        dr = 0
+        step_par = np.array([step*np.cos(pa_space[i]), step*np.sin(pa_space[i])])
+        step_per = np.array([step*np.cos(pa_space[i]+np.pi/2.), step*np.sin(pa_space[i]+np.pi/2.)])
+        j = 1
+        while dr < image['r.max.pix']:
+            slit_par.append(centre + i * step_par)
+            slit_par.append(centre - i * step_par)
+            slit_per.append(centre + i * step_per)
+            slit_per.append(centre - i * step_per)
+            dr += step
+            j += 1
+
+        slit_par, slit_per = np.array([slit_par, slit_per])
+        r_par = [slit_par[i] for i in np.lexsort([slit_par.T[0], slit_par.T[1]])]
+        r_per = [slit_per[i] for i in np.lexsort([slit_par.T[0], slit_par.T[1]])]
+
+        apertures_par = RectangularAperture(r_par, width, step, pa_space[i])
+        apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
+
+        table_par = aperture_photometry(image, apertures_par)
+        table_per = aperture_photometry(image, apertures_per)
+
+        area = step * width
+
+        intense_par = [elem / area for elem in table_par['aperture_sum']]
+        intense_per = [elem / area for elem in table_per['aperture_sum']]
+
+        if 'conv' in kw:
+            kernel = Gaussian1DKernel(stddev=image['bg'].background_rms_median)
+            intense_par = convolve(np.array(intense_par), kernel)
+            intense_per = convolve(np.array(intense_per), kernel)
+
+        if n_slit == 1:
+            slits = np.array([intense_par, intense_per])
+        else:
+            slits.append([intense_par, intense_per])
+
+    rad = np.array([k*step for k in range(-j+1, j, 1)])
+
+    # теперь это надо записать в изображение. диапазон радиусов + интенсивности. если лист, то надо в отдельныу поля параллельные и перпендикулярные?
+
+
+
+
+
+
+
 
 
 
