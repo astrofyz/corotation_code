@@ -74,15 +74,18 @@ class ImageClass(dict):
         plt.show()
 
     def plot_slits(self):
-        if 'slits' not in self.keys:
-            calc_slit(self, convolve=True)
+        if 'slits' not in self.keys():
+            calc_slit(self, angle=self['pa'], convolve=True)
 
-        f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 2, 1]}, figsize=(8, 12))
+        f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12))
+        ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
         ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
+        # print(self['slits'])
         for slit in self['slits']:
             ax2.plot(self['slits.rad.pix'], slit[0], color='orange')
             ax2.plot(self['slits.rad.pix'], slit[1], color='navy')
             ax2.invert_yaxis()
+            ax2.grid()
         idx = np.argmax([sum(abs(row)) for row in self['residuals']])
         for i in range(len(self['residuals'])):
             if i == idx:
@@ -93,6 +96,10 @@ class ImageClass(dict):
             ax3.axhline(0.)
             ax3.legend()
             ax3.grid()
+        xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
+        ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
+        ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')
+        plt.show()
 
 
 def make_images(names, bands='all', types='all',

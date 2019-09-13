@@ -139,9 +139,15 @@ def ellipse_fit(image, property_name=True, **kw):
     if property_name=='list':
         image.prop(['eps.list', 'pa.list'], data=[isolist.eps, isolist.pa])
     elif property_name=='single':
-        image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
+        if len(isolist.eps) < 1:
+            image.prop(['eps', 'pa'], data=[0., 0.])
+        else:
+            image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
     elif property_name:
-        image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
+        if len(isolist.eps) < 1:
+            image.prop(['eps', 'pa'], data=[0., 0.])
+        else:
+            image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
 
 
 def calc_sb(image, **kw):
@@ -225,7 +231,7 @@ def find_parabola(image, **kw):
     else:
         low = np.where(abs(curvature) < 0.1)[0][0]
         top = idxs_valid[0][zero_abs[0]]
-    print(low, top)
+    # print(low, top)
 
     fit_r = image['sb.rad.pix'][low:top+1]
     fit_sb = image['sb'][low:top+1]
@@ -261,14 +267,19 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     step : distance between two succesive apertures along radius
     width : width of slit"""
 
+    if all(['r.' not in key.lower() for key in image.keys()]):
+        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+
     slits = []
     centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
-    slit_par = [centre]
-    slit_per = [centre]
+    slit_par = list([centre])
+    slit_per = list([centre])
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)
     else:
-        pa_space = np.array(angle)
+        pa_space = np.array([angle])
+
+    # print(pa_space[0], step, step*np.cos(pa_space[i]), step*np.sin(pa_space[i]))
 
     for i in range(n_slit):
         dr = 0
@@ -276,10 +287,10 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         step_per = np.array([step*np.cos(pa_space[i]+np.pi/2.), step*np.sin(pa_space[i]+np.pi/2.)])
         j = 1
         while dr < image['r.max.pix']:
-            slit_par.append(centre + i * step_par)
-            slit_par.append(centre - i * step_par)
-            slit_per.append(centre + i * step_per)
-            slit_per.append(centre - i * step_per)
+            slit_par.append(centre + j * step_par)
+            slit_par.append(centre - j * step_par)
+            slit_per.append(centre + j * step_per)
+            slit_per.append(centre - j * step_per)
             dr += step
             j += 1
 
@@ -290,8 +301,10 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         apertures_par = RectangularAperture(r_par, width, step, pa_space[i])
         apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
 
-        table_par = aperture_photometry(image, apertures_par)
-        table_per = aperture_photometry(image, apertures_per)
+        table_par = aperture_photometry(image['real.mag'], apertures_par)
+        table_per = aperture_photometry(image['real.mag'], apertures_per)
+
+        # print(table_par)
 
         area = step * width
 
@@ -303,10 +316,7 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
             intense_par = convolve(np.array(intense_par), kernel)
             intense_per = convolve(np.array(intense_per), kernel)
 
-        if n_slit == 1:
-            slits = np.array([intense_par, intense_per])
-        else:
-            slits.append([intense_par, intense_per])
+        slits.append([intense_par, intense_per])
 
     rad = np.array([k*step for k in range(-j+1, j, 1)])
 
