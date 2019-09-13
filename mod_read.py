@@ -73,6 +73,27 @@ class ImageClass(dict):
         plt.legend()
         plt.show()
 
+    def plot_slits(self):
+        if 'slits' not in self.keys:
+            calc_slit(self, convolve=True)
+
+        f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 2, 1]}, figsize=(8, 12))
+        ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
+        for slit in self['slits']:
+            ax2.plot(self['slits.rad.pix'], slit[0], color='orange')
+            ax2.plot(self['slits.rad.pix'], slit[1], color='navy')
+            ax2.invert_yaxis()
+        idx = np.argmax([sum(abs(row)) for row in self['residuals']])
+        for i in range(len(self['residuals'])):
+            if i == idx:
+                ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='crimson', label='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))  # add angle to label!
+            else:
+                ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='dodgerblue')
+            ax3.set_xlabel('r, arcsec')
+            ax3.axhline(0.)
+            ax3.legend()
+            ax3.grid()
+
 
 def make_images(names, bands='all', types='all',
             path_table='/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv',

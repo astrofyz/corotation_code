@@ -254,7 +254,7 @@ def find_parabola(image, **kw):
     return fit_r, p(fit_r), image['sb.rad.pix'][idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
-def slit(image, n_slit, angle, step=1.2, width=3.5, **kw):
+def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     """image : instance of ImageClass
     n_slit : number of slits
     angle : starting angle
@@ -265,7 +265,10 @@ def slit(image, n_slit, angle, step=1.2, width=3.5, **kw):
     centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
     slit_par = [centre]
     slit_per = [centre]
-    pa_space = np.linspace(0, np.pi/2., n_slit)
+    if n_slit > 1:
+        pa_space = np.linspace(0, np.pi/2., n_slit)
+    else:
+        pa_space = np.array(angle)
 
     for i in range(n_slit):
         dr = 0
@@ -295,7 +298,7 @@ def slit(image, n_slit, angle, step=1.2, width=3.5, **kw):
         intense_par = [elem / area for elem in table_par['aperture_sum']]
         intense_per = [elem / area for elem in table_per['aperture_sum']]
 
-        if 'conv' in kw:
+        if 'convolve' in kw:
             kernel = Gaussian1DKernel(stddev=image['bg'].background_rms_median)
             intense_par = convolve(np.array(intense_par), kernel)
             intense_per = convolve(np.array(intense_per), kernel)
@@ -307,16 +310,11 @@ def slit(image, n_slit, angle, step=1.2, width=3.5, **kw):
 
     rad = np.array([k*step for k in range(-j+1, j, 1)])
 
-    # теперь это надо записать в изображение. диапазон радиусов + интенсивности. если лист, то надо в отдельныу поля параллельные и перпендикулярные?
-
-
-
-
-
-
-
-
-
+    image.prop('slits.rad.pix', data=rad)
+    image.prop('slits', data=slits)
+    image.prop('residuals', data=[(slit[0]-slit[1]) for slit in slits])
+    image.prop('slits.angle', data=pa_space)  # проверь, что размерность совпадает, а не в два раза меньше!
+    return rad, slits
 
 
 
