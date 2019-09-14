@@ -178,14 +178,19 @@ def calc_sb(image, **kw):
     if 'error' in kw:
         total_error = calc_total_error(image['real.mag'], image['bg'].background_rms, image['gain'])
         table_aper = aperture_photometry(image['real.mag'], annulae, error=total_error)
+        # print(len(annulae), 'ann')
+        # print((table_aper['aperture_sum_3']))
         num_apers = int((len(table_aper.colnames) - 3)/2)
         intens = []
         int_error = []
         for i in range(num_apers):
-            intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
-            int_error.append(table_aper['aperture_sum_err_'+str(i)][0] / annulae[i].area())
-        image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., np.array(intens), np.array(int_error)])
-        return (a[1:] + a[:-1]) / 2., np.array(intens), np.array(int_error)
+            # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
+            intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)  #нужна проверка или массив
+            int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area) #нужан проверка на массив
+        intens = np.array(intens).flatten()
+        int_error = np.array(int_error).flatten()
+        image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
+        return (a[1:] + a[:-1]) / 2., intens, int_error
     else:
         table_aper = aperture_photometry(image['real.mag'], annulae)
         num_apers = len(table_aper.colnames) - 3
@@ -272,8 +277,6 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
 
     slits = []
     centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
-    slit_par = list([centre])
-    slit_per = list([centre])
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)
     else:
@@ -282,6 +285,8 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     # print(pa_space[0], step, step*np.cos(pa_space[i]), step*np.sin(pa_space[i]))
 
     for i in range(n_slit):
+        slit_par = list([centre])
+        slit_per = list([centre])
         dr = 0
         step_par = np.array([step*np.cos(pa_space[i]), step*np.sin(pa_space[i])])
         step_per = np.array([step*np.cos(pa_space[i]+np.pi/2.), step*np.sin(pa_space[i]+np.pi/2.)])
@@ -291,10 +296,12 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
             slit_par.append(centre - j * step_par)
             slit_per.append(centre + j * step_per)
             slit_per.append(centre - j * step_per)
+            # print(centre+j*step_par)
             dr += step
             j += 1
 
         slit_par, slit_per = np.array([slit_par, slit_per])
+        # print(slit_par, np.shape(slit_par))
         r_par = [slit_par[i] for i in np.lexsort([slit_par.T[0], slit_par.T[1]])]
         r_per = [slit_per[i] for i in np.lexsort([slit_par.T[0], slit_par.T[1]])]
 

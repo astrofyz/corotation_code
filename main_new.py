@@ -17,7 +17,7 @@ table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_
 im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
 out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
 
-images = make_images(names=['587739707948204093','587742551759257682','588007004191326250'], bands='all', types='all', path=im_path)
+images = make_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
 
 @contextmanager
 def figure(**kw):
@@ -73,24 +73,26 @@ def figure(**kw):
 #         plt.plot(images[band]['sb.rad.pix'], images[band]['sb'])
 #     plt.gca().invert_yaxis()
 
-for image in images:
-    # try:
-        for band in ['g', 'i', 'r', 'u', 'z']:
-            find_parabola(image[band])
-            calc_sb(image[band], error=True)
-        with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$') as fig:
-            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
-            plt.gca().invert_yaxis()
-            for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
-                plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-                plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.2)
-                plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
-                plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
-            plt.legend()
-        image['r'].plot_slits()
-    # except:
-    #     print('meow')
-    #     pass
+print(len(images))
+image = images
+for m in range(1):
+    for band in ['g', 'i', 'r', 'u', 'z']:
+        find_parabola(image[band])
+        calc_sb(image[band], error=True)
+    with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$') as fig:
+        plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
+        plt.gca().invert_yaxis()
+        for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
+            plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
+            plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.2)
+            plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
+            plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
+        plt.legend()
+    image['r'].plot_slits(n_slit=40)
+    idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
+    print(image['r']['pa'])
+    print(image['r']['slits.angle'][idx])
+
 
 # image = images[0]
 # for band in ['g', 'i', 'r', 'u', 'z']:
@@ -112,3 +114,18 @@ for image in images:
 # calc_slit(images['r'], angle=miages['r']['pa'], n_slit=1, convolve=True)
 # print(images['r'].keys())
 # дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара
+
+
+# from scipy import ndimage, misc
+# import matplotlib.pyplot as plt
+# fig = plt.figure()
+# plt.gray()  # show the filtered result in grayscale
+# ax1 = fig.add_subplot(121)  # left side
+# ax2 = fig.add_subplot(122)  # right side
+# result = ndimage.gaussian_gradient_magnitude(images[0]['r']['real.mag'], sigma=5)
+# ax1.imshow(images[0]['r']['real.mag'])
+# res = ax2.imshow(result, cmap='plasma')
+# cbar = plt.colorbar(res)
+# plt.show()
+
+# ну это прикольно. а что с этим дальше делать?

@@ -33,7 +33,7 @@ class ImageClass(dict):
         self['objid'] = 'objid dr7'
         self['ra'] = 0.
         self['dec'] = 0.
-        self = dict()  # а как сделать нормально?
+        self = dict()  # а как сделать нормально?  наверное, надо делать наследование какое-то.
 
     def prop(self, property_name, **kw):
         if 'data' in kw:
@@ -73,9 +73,10 @@ class ImageClass(dict):
         plt.legend()
         plt.show()
 
-    def plot_slits(self):
+    def plot_slits(self, n_slit=1):
         if 'slits' not in self.keys():
-            calc_slit(self, angle=self['pa'], convolve=True)
+            calc_slit(self, n_slit=n_slit, angle=self['pa'], convolve=True)
+        # print(self.keys())
 
         f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12))
         ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
