@@ -85,8 +85,8 @@ class ImageClass(dict):
         for slit in self['slits']:
             ax2.plot(self['slits.rad.pix'], slit[0], color='orange')
             ax2.plot(self['slits.rad.pix'], slit[1], color='navy')
-            ax2.invert_yaxis()
             ax2.grid()
+        ax2.invert_yaxis()
         idx = np.argmax([sum(abs(row)) for row in self['residuals']])
         for i in range(len(self['residuals'])):
             if i == idx:
