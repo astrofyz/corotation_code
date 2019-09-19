@@ -73,7 +73,7 @@ class ImageClass(dict):
         plt.legend()
         plt.show()
 
-    def plot_slits(self, n_slit=1):
+    def plot_slits(self, n_slit=1, **kw):
         if 'slits' not in self.keys():
             calc_slit(self, n_slit=n_slit, angle=self['pa'], convolve=True)
         # print(self.keys())
@@ -100,7 +100,10 @@ class ImageClass(dict):
         xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')
+        if 'savename' in kw:
+            plt.savefig(kw.get('savename'), dpi=120)
         plt.show()
+
 
 
 def make_images(names, bands='all', types='all',

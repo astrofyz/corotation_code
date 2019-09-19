@@ -1,3 +1,4 @@
+#%%
 from mod_read import *
 from mod_analysis import *
 import pandas as pd
@@ -15,10 +16,15 @@ from contextlib import contextmanager
 
 table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
 im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-out_path = '/media/mouse13/My Passport/corotation_code/data/check_fourier/'
+out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
 
-images = make_images(names=['587739707948204093'], bands='all', types='all', path=im_path)
+names = np.loadtxt('gal_names.txt', dtype='str')
+# print(names)
 
+images = make_images(names=names[6:], bands='all', types='all', path=im_path)
+
+print(type(images[0]['objid14']))
+#%%
 @contextmanager
 def figure(**kw):
     fig = plt.figure()
@@ -29,7 +35,10 @@ def figure(**kw):
         plt.xlabel(kw.get('xlabel'))
     if 'ylabel' in kw:
         plt.xlabel(kw.get('ylabel'))
+    if 'savename' in kw:
+        plt.savefig(kw.get('savename'))
     plt.show()
+
 
 # with figure() as fig:
 #     plt.imshow(images[0]['r']['obj'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
@@ -74,24 +83,30 @@ def figure(**kw):
 #     plt.gca().invert_yaxis()
 
 print(len(images))
-image = images
-for m in range(1):
-    for band in ['g', 'i', 'r', 'u', 'z']:
-        find_parabola(image[band])
-        calc_sb(image[band], error=True)
-    with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$') as fig:
-        plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
-        plt.gca().invert_yaxis()
-        for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
-            plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-            plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.2)
-            plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
-            plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
-        plt.legend()
-    image['r'].plot_slits(n_slit=40)
-    idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
-    print(image['r']['pa'])
-    print(image['r']['slits.angle'][idx])
+# image = images[1]
+for image in images:
+    try:
+        print('lul')
+        for band in ['g', 'i', 'r', 'u', 'z']:
+            find_parabola(image[band])
+            calc_sb(image[band], error=True)
+        with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objid14'])+'.png') as fig:
+            print(out_path+image['name']+'.png')
+            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
+            plt.gca().invert_yaxis()
+            for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
+                plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
+                plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.2)
+                plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
+                plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
+            plt.legend()
+        image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objid14'])+'_slits.png')
+        idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
+        print(image['name'])
+        print(image['r']['pa'])
+        print(image['r']['slits.angle'][idx])
+    except:
+        pass
 
 
 # image = images[0]
@@ -111,7 +126,7 @@ for m in range(1):
 #     plt.legend()
 # image['r'].plot_slits()
 
-# calc_slit(images['r'], angle=miages['r']['pa'], n_slit=1, convolve=True)
+# calc_slit(images['r'], angle=images['r']['pa'], n_slit=20, convolve=True)
 # print(images['r'].keys())
 # дальше функция фита эллипсом и другие возможные способы определить положение и размеры бара
 

@@ -185,8 +185,8 @@ def calc_sb(image, **kw):
         int_error = []
         for i in range(num_apers):
             # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
-            intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)  #нужна проверка или массив
-            int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area) #нужан проверка на массив
+            intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())  #нужна проверка или массив
+            int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area()) #нужан проверка на массив
         intens = np.array(intens).flatten()
         int_error = np.array(int_error).flatten()
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
