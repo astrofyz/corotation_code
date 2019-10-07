@@ -105,8 +105,22 @@ for image in images:
         print(image['name'])
         print(image['r']['pa'])
         print(image['r']['slits.angle'][idx])
+
+        with figure(savename=out_path+'bar_'+str(image['objid14'])+'.png') as fig:
+            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3)))
+            plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
+                       norm=ImageNormalize(stretch=LinearStretch()))
+            idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
+            # print(images['r']['residuals'][idx])
+            print(image['r']['slits.rad.pix'][idx_bar])
+            xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
+            aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
+            aper.plot(lw=0.2, color='blue')
     except:
+        print(image['objid14'], 'none')
         pass
+
+
 
 
 # image = images[0]

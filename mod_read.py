@@ -13,7 +13,7 @@ from astropy.visualization import LogStretch, LinearStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 # from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
-from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
+from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture, CircularAperture
 from photutils.utils import calc_total_error
 from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
@@ -93,7 +93,7 @@ class ImageClass(dict):
                 ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='crimson', label='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))  # add angle to label!
             else:
                 ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='dodgerblue')
-            ax3.set_xlabel('r, arcsec')
+            ax3.set_xlabel('r, pix')
             ax3.axhline(0.)
             ax3.legend()
             ax3.grid()
