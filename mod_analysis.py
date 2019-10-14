@@ -177,6 +177,7 @@ def calc_sb(image, **kw):
 
     if 'error' in kw:
         total_error = calc_total_error(image['real.mag'], image['bg'].background_rms, image['gain'])
+        image.prop('total_error', data=total_error)
         table_aper = aperture_photometry(image['real.mag'], annulae, error=total_error)
         # print(len(annulae), 'ann')
         # print((table_aper['aperture_sum_3']))
@@ -185,8 +186,12 @@ def calc_sb(image, **kw):
         int_error = []
         for i in range(num_apers):
             # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
-            intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)  #нужна проверка или массив
-            int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area) #нужан проверка на массив
+            try:
+                intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
+                int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area)
+            except:
+                intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
+                int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area())
         intens = np.array(intens).flatten()
         int_error = np.array(int_error).flatten()
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
@@ -211,26 +216,39 @@ def find_curvature(r, fc, **kwargs):
 
 
 def find_parabola(image, **kw):
-    """image : instance of ImageClass
-    :returns"""
+    """image : instance of ImageClass or False
+    kw : rad_pix, r_max, sb_err, sb
+    :returns sb.rad.fit, sb.fit, """
 
-    if all(['r.' not in key.lower() for key in image.keys()]):
-        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+    if isinstance(image, mod_read.ImageClass):
+        if all(['r.' not in key.lower() for key in image.keys()]):
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
 
-    if all(['sb' not in key.lower() for key in image.keys()]):
-        calc_sb(image, error=True)
+        if all(['sb' not in key.lower() for key in image.keys()]):
+            calc_sb(image, error=True)
 
-    idxs = np.where(image['sb.rad.pix'] < image['r.max.pix'])  # это очень скользко, переделай
+        rad_pix = image['sb.rad.pix']
+        r_max = image['r.max.pix']
+        sb_err = image['sb.err']
+        sb = image['sb']
 
-    conv_kernel = Gaussian1DKernel(stddev=2.*np.sqrt(max([np.mean(image['sb.err']), np.median(image['sb.err'])])))
-    sb_conv = convolve(image['sb'], conv_kernel)
-    curvature = find_curvature(image['sb.rad.pix'], sb_conv)[idxs]
+    else:
+        rad_pix = kw['rad_pix']
+        r_max = kw['r_max']
+        sb_err = kw['sb_err']
+        sb = kw['sb']
+
+    idxs = np.where(rad_pix < r_max)  # это очень скользко, переделай
+
+    conv_kernel = Gaussian1DKernel(stddev=2.*np.sqrt(max([np.mean(sb_err), np.median(sb_err)])))
+    sb_conv = convolve(sb, conv_kernel)
+    curvature = find_curvature(rad_pix, sb_conv)[idxs]
 
     idxs_valid = np.where(abs(curvature) < 0.1)
     min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]  #должен быть способ изящнее
     zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
 
-    if min_peak > zero_abs[0]:
+    if (min_peak > zero_abs[0]) & (min_peak < zero_abs[-1]):
         low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
         top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
     else:
@@ -238,31 +256,38 @@ def find_parabola(image, **kw):
         top = idxs_valid[0][zero_abs[0]]
     # print(low, top)
 
-    fit_r = image['sb.rad.pix'][low:top+1]
-    fit_sb = image['sb'][low:top+1]
+    fit_r = rad_pix[low:top+1]
+    fit_sb = sb[low:top+1]
     p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
 
     if 'plot' in kw:
         f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
-        ax1.plot(image['sb.rad.pix'], image['sb'], color='darkred', lw=1, label='profile')
-        ax1.plot(image['sb.rad.pix'], sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
+        ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
+        ax1.plot(rad_pix, sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
         ax1.plot(fit_r, p(fit_r), color='k', label='approx')
-        ax1.axvline(image['sb.rad.pix'][low])
-        ax1.axvline(image['sb.rad.pix'][top])
+        ax1.axvline(rad_pix[low])
+        ax1.axvline(rad_pix[top])
         ax1.set_xlabel('r (arcsec)')
         ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
         ax1.legend()
-        ax1.set_ylim(max(image['sb']), min(image['sb']))
-        ax2.scatter(image['sb.rad.pix'], abs(curvature), s=14, label='|curvature|')
-        ax2.scatter(image['sb.rad.pix'], curvature, s=14, label='curvature')
+        ax1.set_ylim(max(sb), min(sb))
+        ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
+        ax2.scatter(rad_pix, curvature, s=14, label='curvature')
         ax2.axhline(0.)
         ax2.legend()
         plt.grid()
         plt.show()
+        plt.close()
     # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его
-    image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
-               data=[fit_r, p(fit_r), opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x])
-    return fit_r, p(fit_r), image['sb.rad.pix'][idxs_valid[0][-1]]  # pix vs arcsec flag
+    try:
+        r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
+    except:
+        r_min = 0.
+        print("couldn't find parabolda minimum")
+    if isinstance(image, mod_read.ImageClass):
+        image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
+               data=[fit_r, p(fit_r), r_min])
+    return fit_r, p(fit_r), r_min  #rad_pix[idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
 def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
@@ -276,6 +301,7 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
 
     slits = []
+    errors = []
     centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)
@@ -308,8 +334,8 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         apertures_par = RectangularAperture(r_par, width, step, pa_space[i])
         apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
 
-        table_par = aperture_photometry(image['real.mag'], apertures_par)
-        table_per = aperture_photometry(image['real.mag'], apertures_per)
+        table_par = aperture_photometry(image['real.mag'], apertures_par, error=image['total_error'])
+        table_per = aperture_photometry(image['real.mag'], apertures_per, error=image['total_error'])
 
         # print(table_par)
 
@@ -318,19 +344,31 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         intense_par = [elem / area for elem in table_par['aperture_sum']]
         intense_per = [elem / area for elem in table_per['aperture_sum']]
 
+        error_par = [elem / area for elem in table_par['aperture_sum_err']]
+        error_per = [elem / area for elem in table_per['aperture_sum_err']]
+
         if 'convolve' in kw:
             kernel = Gaussian1DKernel(stddev=image['bg'].background_rms_median)
             intense_par = convolve(np.array(intense_par), kernel)
             intense_per = convolve(np.array(intense_per), kernel)
 
         slits.append([intense_par, intense_per])
+        errors.append([error_par, error_per])
 
     rad = np.array([k*step for k in range(-j+1, j, 1)])
 
+    slits = np.array(slits)
     image.prop('slits.rad.pix', data=rad)
     image.prop('slits', data=slits)
     image.prop('residuals', data=[(slit[0]-slit[1]) for slit in slits])
     image.prop('slits.angle', data=pa_space)  # проверь, что размерность совпадает, а не в два раза меньше!
+
+    idx = np.argmax([sum(abs(row)) for row in image['residuals']])
+    image.prop('slit.max', data=slits[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.min', data=slits[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.max.err', data=errors[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.min.err', data=errors[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('angle.max', data=pa_space[idx])
     return rad, slits
 
 

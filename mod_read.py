@@ -15,7 +15,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture, CircularAperture
 from photutils.utils import calc_total_error
-from scipy.interpolate import splrep, splev, UnivariateSpline
+from scipy.interpolate import splrep, splev, UnivariateSpline, interp1d
 import scipy.signal as signal
 import warnings
 import numpy.ma as ma
