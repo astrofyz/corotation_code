@@ -250,66 +250,84 @@ def find_fancy_parabola(image, **kw):
     sb_conv = convolve(sb, conv_kernel)
     curvature = find_curvature(rad_pix, sb_conv)
 
-    with figure() as fig:
-        plt.plot(rad_pix, sb_conv)
-        plt.plot(rad_pix, sb)
-        plt.show()
-
-    with figure() as fig:
-        plt.plot(rad_pix, curvature)
-        plt.axhline(0.)
-        plt.plot(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2)),
-                 interp1d(rad_pix, curvature)(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2))))
-        plt.show()
-    return
-
     idxs_valid = np.where(abs(curvature) < 0.1)
     min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]  #должен быть способ изящнее
     zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
+    max_peak = signal.argrelextrema(curvature[idxs_valid], np.greater)[0]
+    possible_bounds = np.sort(np.concatenate([zero_abs, max_peak]))
 
-    # try:
-    if (min_peak > zero_abs[0]) & (min_peak < zero_abs[-1]):
-        low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
-        top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
-    else:
-        low = np.where(abs(curvature) < 0.1)[0][0]
-        top = idxs_valid[0][zero_abs[0]]
-    # except:
+    # with figure() as fig:
+    #     plt.plot(rad_pix, sb_conv)
+    #     plt.plot(rad_pix, sb)
+    #     plt.axvline(rad_pix[idxs_valid][min_peak])
+    #     plt.vlines(rad_pix[idxs_valid][zero_abs], color='k', ymin=min(sb), ymax=max(sb))
+    #     plt.vlines(rad_pix[idxs_valid][max_peak], color='k', ymin=min(sb), ymax=max(sb))
+    #     plt.show()
+    #
+    # with figure() as fig:
+    #     plt.plot(rad_pix, curvature)
+    #     plt.axhline(0.)
+    #     plt.plot(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2)),
+    #              interp1d(rad_pix, curvature)(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2))))
+    #     plt.axvline(rad_pix[idxs_valid][min_peak])
+    #     plt.vlines(rad_pix[idxs_valid][zero_abs], color='k', ymin=min(curvature), ymax=max(curvature))
+    #     plt.vlines(rad_pix[idxs_valid][max_peak], color='k', ymin=min(curvature), ymax=max(curvature))
+    #     plt.show()
 
+    try:
+        low = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)-1]]
+        top = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)]]
+    except:
+        try:
+            low = idxs_valid[0][signal.argrelextrema(abs(np.gradient(sb_conv[idxs_valid])), np.greater)[0]]
+            top = idxs_valid[0][signal.argrelextrema(abs(np.gradient(sb_conv[idxs_valid])), np.greater)[1]]
+            print('WARNING: interval of parabola fitting was found using gradient of sb_conv')
+        except:
+            low = idxs_valid[0]
+            top = idxs_valid[-1]
+            print("WARNING: interval of parabola fitting wasn't found")
 
-    # print(low, top)
+    min_peak = idxs_valid[0][min_peak]
+
+    if (min_peak > low)&(min_peak < top):
+        dist = min([min_peak-low, top-min_peak])
+        low = min_peak-dist
+        top = min_peak+dist
 
     fit_r = rad_pix[low:top+1]
     fit_sb = sb[low:top+1]
     p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
 
-    # if 'plot' in kw:
-    #     f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
-    #     ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
-    #     ax1.plot(rad_pix, sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
-    #     ax1.plot(fit_r, p(fit_r), color='k', label='approx')
-    #     ax1.axvline(rad_pix[low])
-    #     ax1.axvline(rad_pix[top])
-    #     ax1.set_xlabel('r (arcsec)')
-    #     ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-    #     ax1.legend()
-    #     ax1.set_ylim(max(sb), min(sb))
-    #     ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
-    #     ax2.scatter(rad_pix, curvature, s=14, label='curvature')
-    #     ax2.axhline(0.)
-    #     ax2.legend()
-    #     plt.grid()
-    #     plt.show()
-    #     plt.close()
+    if 'plot' in kw:
+        f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
+        ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
+        ax1.plot(rad_pix, sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
+        ax1.plot(fit_r, p(fit_r), color='k', label='approx')
+        ax1.axvline(rad_pix[low], color='y')
+        ax1.axvline(rad_pix[top], color='g')
+        ax1.axvline(rad_pix[min_peak], color='red')
+        ax1.set_xlabel('r (arcsec)')
+        ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+        ax1.legend()
+        ax1.set_ylim(max(sb), min(sb))
+        ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
+        ax2.scatter(rad_pix, curvature, s=14, label='curvature')
+        ax2.axhline(0.)
+        ax2.legend()
+        plt.grid()
+        plt.show()
+        plt.close()
     # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его
     try:
         r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
     except:
         r_min = 0.
         print("couldn't find parabolda minimum")
+
     if isinstance(image, mod_read.ImageClass):
         image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
                data=[fit_r, p(fit_r), r_min])
+
     return fit_r, p(fit_r), r_min  #rad_pix[idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
