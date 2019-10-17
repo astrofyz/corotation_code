@@ -11,7 +11,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
 from photutils.utils import calc_total_error
-from scipy.interpolate import splrep, splev, UnivariateSpline
+from scipy.interpolate import splrep, splev, UnivariateSpline, interp1d
 import scipy.signal as signal
 import scipy.optimize as opt
 import warnings
@@ -45,6 +45,7 @@ def figure():
     fig = plt.figure()
     yield fig
     plt.show()
+    plt.close()
 
 
 def ellipse_fit(image, property_name=True, **kw):
@@ -164,8 +165,13 @@ def calc_sb(image, **kw):
     step = image['FD']
 
     if 'eps' not in image:
-        ellipse_fit(image, maxgerr=True)
-    eps = image['eps']
+        try:
+            ellipse_fit(image, maxgerr=True)
+            eps = image['eps']
+        except:
+            eps = 0.
+    else:
+        eps = image['eps']
 
     # print(step, image['r.max.pix'])
     a = np.arange(step, image['r.max.pix'], step)
@@ -215,6 +221,98 @@ def find_curvature(r, fc, **kwargs):
     return curvature
 
 
+def find_fancy_parabola(image, **kw):
+    """image : instance of ImageClass or False
+    kw : rad_pix, r_max, sb_err, sb
+    :returns sb.rad.fit, sb.fit, """
+
+    if isinstance(image, mod_read.ImageClass):
+        if all(['r.' not in key.lower() for key in image.keys()]):
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+
+        if all(['sb' not in key.lower() for key in image.keys()]):
+            calc_sb(image, error=True)
+
+        rad_pix = image['sb.rad.pix']
+        r_max = image['r.max.pix']
+        sb_err = image['sb.err']
+        sb = image['sb']
+
+    else:
+        rad_pix = kw['rad_pix']
+        r_max = kw['r_max']
+        sb_err = kw['sb_err']
+        sb = kw['sb']
+
+    # idxs = np.where(rad_pix < r_max)  # это очень скользко, переделай
+
+    conv_kernel = Gaussian1DKernel(stddev=2.*np.sqrt(np.mean(sb_err)))
+    sb_conv = convolve(sb, conv_kernel)
+    curvature = find_curvature(rad_pix, sb_conv)
+
+    with figure() as fig:
+        plt.plot(rad_pix, sb_conv)
+        plt.plot(rad_pix, sb)
+        plt.show()
+
+    with figure() as fig:
+        plt.plot(rad_pix, curvature)
+        plt.axhline(0.)
+        plt.plot(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2)),
+                 interp1d(rad_pix, curvature)(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2))))
+        plt.show()
+    return
+
+    idxs_valid = np.where(abs(curvature) < 0.1)
+    min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]  #должен быть способ изящнее
+    zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
+
+    # try:
+    if (min_peak > zero_abs[0]) & (min_peak < zero_abs[-1]):
+        low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
+        top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
+    else:
+        low = np.where(abs(curvature) < 0.1)[0][0]
+        top = idxs_valid[0][zero_abs[0]]
+    # except:
+
+
+    # print(low, top)
+
+    fit_r = rad_pix[low:top+1]
+    fit_sb = sb[low:top+1]
+    p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
+
+    # if 'plot' in kw:
+    #     f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
+    #     ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
+    #     ax1.plot(rad_pix, sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
+    #     ax1.plot(fit_r, p(fit_r), color='k', label='approx')
+    #     ax1.axvline(rad_pix[low])
+    #     ax1.axvline(rad_pix[top])
+    #     ax1.set_xlabel('r (arcsec)')
+    #     ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+    #     ax1.legend()
+    #     ax1.set_ylim(max(sb), min(sb))
+    #     ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
+    #     ax2.scatter(rad_pix, curvature, s=14, label='curvature')
+    #     ax2.axhline(0.)
+    #     ax2.legend()
+    #     plt.grid()
+    #     plt.show()
+    #     plt.close()
+    # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его
+    try:
+        r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
+    except:
+        r_min = 0.
+        print("couldn't find parabolda minimum")
+    if isinstance(image, mod_read.ImageClass):
+        image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
+               data=[fit_r, p(fit_r), r_min])
+    return fit_r, p(fit_r), r_min  #rad_pix[idxs_valid[0][-1]]  # pix vs arcsec flag
+
+
 def find_parabola(image, **kw):
     """image : instance of ImageClass or False
     kw : rad_pix, r_max, sb_err, sb
@@ -248,12 +346,16 @@ def find_parabola(image, **kw):
     min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]  #должен быть способ изящнее
     zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
 
+    # try:
     if (min_peak > zero_abs[0]) & (min_peak < zero_abs[-1]):
         low = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)-1]]
         top = idxs_valid[0][zero_abs[np.searchsorted(zero_abs, min_peak)]]
     else:
         low = np.where(abs(curvature) < 0.1)[0][0]
         top = idxs_valid[0][zero_abs[0]]
+    # except:
+
+
     # print(low, top)
 
     fit_r = rad_pix[low:top+1]
