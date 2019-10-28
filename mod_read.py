@@ -90,17 +90,16 @@ class ImageClass(dict):
             else:
                 ax2.plot(self['slits.rad.pix'], slit[0], color='gold', alpha=0.)
                 ax2.plot(self['slits.rad.pix'], slit[1], color='dodgerblue', alpha=0.)
-            ax2.grid()
+        ax2.grid()
         ax2.invert_yaxis()
+        line_max = ax3.plot(self['slits.rad.pix'], self['residuals'][idx], color='crimson')  # add angle to label!
         for i in range(len(self['residuals'])):
-            if i == idx:
-                ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='crimson', label='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))  # add angle to label!
-            else:
+            if i != idx:
                 ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='dodgerblue', alpha=0.2)
-            ax3.set_xlabel('r, pix')
-            ax3.axhline(0.)
-            ax3.legend()
-            ax3.grid()
+        ax3.set_xlabel('r, pix')
+        ax3.axhline(0.)
+        ax3.legend(handles=line_max, labels='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))
+        ax3.grid()
         xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')

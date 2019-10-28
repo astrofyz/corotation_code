@@ -398,7 +398,8 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     n_slit : number of slits
     angle : starting angle
     step : distance between two succesive apertures along radius
-    width : width of slit"""
+    width : width of slit
+    kw: convolve: background is required"""
 
     if all(['r.' not in key.lower() for key in image.keys()]):
         image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
