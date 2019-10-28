@@ -256,24 +256,6 @@ def find_fancy_parabola(image, **kw):
     max_peak = signal.argrelextrema(curvature[idxs_valid], np.greater)[0]
     possible_bounds = np.sort(np.concatenate([zero_abs, max_peak]))
 
-    # with figure() as fig:
-    #     plt.plot(rad_pix, sb_conv)
-    #     plt.plot(rad_pix, sb)
-    #     plt.axvline(rad_pix[idxs_valid][min_peak])
-    #     plt.vlines(rad_pix[idxs_valid][zero_abs], color='k', ymin=min(sb), ymax=max(sb))
-    #     plt.vlines(rad_pix[idxs_valid][max_peak], color='k', ymin=min(sb), ymax=max(sb))
-    #     plt.show()
-    #
-    # with figure() as fig:
-    #     plt.plot(rad_pix, curvature)
-    #     plt.axhline(0.)
-    #     plt.plot(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2)),
-    #              interp1d(rad_pix, curvature)(np.linspace(rad_pix[0], rad_pix[-1], int(len(rad_pix)*2))))
-    #     plt.axvline(rad_pix[idxs_valid][min_peak])
-    #     plt.vlines(rad_pix[idxs_valid][zero_abs], color='k', ymin=min(curvature), ymax=max(curvature))
-    #     plt.vlines(rad_pix[idxs_valid][max_peak], color='k', ymin=min(curvature), ymax=max(curvature))
-    #     plt.show()
-
     try:
         low = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)-1]]
         top = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)]]
@@ -298,6 +280,12 @@ def find_fancy_parabola(image, **kw):
     fit_sb = sb[low:top+1]
     p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
 
+    try:
+        r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
+    except:
+        r_min = 0.
+        print("couldn't find parabolda minimum")
+
     if 'plot' in kw:
         f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
         ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
@@ -306,6 +294,7 @@ def find_fancy_parabola(image, **kw):
         ax1.axvline(rad_pix[low], color='y')
         ax1.axvline(rad_pix[top], color='g')
         ax1.axvline(rad_pix[min_peak], color='red')
+        ax1.axvline(r_min, color='orchid', lw=3)
         ax1.set_xlabel('r (arcsec)')
         ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
         ax1.legend()
@@ -317,12 +306,6 @@ def find_fancy_parabola(image, **kw):
         plt.grid()
         plt.show()
         plt.close()
-    # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его
-    try:
-        r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
-    except:
-        r_min = 0.
-        print("couldn't find parabolda minimum")
 
     if isinstance(image, mod_read.ImageClass):
         image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
@@ -484,10 +467,10 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     image.prop('slits.angle', data=pa_space)  # проверь, что размерность совпадает, а не в два раза меньше!
 
     idx = np.argmax([sum(abs(row)) for row in image['residuals']])
-    image.prop('slit.max', data=slits[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
-    image.prop('slit.min', data=slits[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
-    image.prop('slit.max.err', data=errors[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
-    image.prop('slit.min.err', data=errors[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.min', data=slits[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.max', data=slits[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.min.err', data=errors[idx][np.argmax([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
+    image.prop('slit.max.err', data=errors[idx][np.argmin([sum(abs(slits[idx][0])), sum(abs(slits[idx][1]))])])
     image.prop('angle.max', data=pa_space[idx])
     return rad, slits
 

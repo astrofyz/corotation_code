@@ -82,17 +82,21 @@ class ImageClass(dict):
         ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
         ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
         # print(self['slits'])
-        for slit in self['slits']:
-            ax2.plot(self['slits.rad.pix'], slit[0], color='orange')
-            ax2.plot(self['slits.rad.pix'], slit[1], color='navy')
+        idx = np.argmax([sum(abs(row)) for row in self['residuals']])
+        for i, slit in enumerate(self['slits']):
+            if i == idx:
+                ax2.plot(self['slits.rad.pix'], slit[0], color='coral', lw=1)
+                ax2.plot(self['slits.rad.pix'], slit[1], color='navy', lw=1)
+            else:
+                ax2.plot(self['slits.rad.pix'], slit[0], color='gold', alpha=0.)
+                ax2.plot(self['slits.rad.pix'], slit[1], color='dodgerblue', alpha=0.)
             ax2.grid()
         ax2.invert_yaxis()
-        idx = np.argmax([sum(abs(row)) for row in self['residuals']])
         for i in range(len(self['residuals'])):
             if i == idx:
                 ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='crimson', label='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))  # add angle to label!
             else:
-                ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='dodgerblue')
+                ax3.plot(self['slits.rad.pix'], self['residuals'][i], color='dodgerblue', alpha=0.2)
             ax3.set_xlabel('r, pix')
             ax3.axhline(0.)
             ax3.legend()
