@@ -38,5 +38,9 @@ plt.show()
 
 import scipy.optimize as opt
 
-res = opt.minimize(lambda arg: sum(abs(np.matmul(rot_transform(arg), np.array([x, y, np.zeros_like(x)])) - np.array([x1, y1, z1]))), x0=[0.5, 0.5, 0.])
-print(res)
+def circle(angle, r):
+    return [r*np.cos(angle), r*np.sin(angle)]
+
+print(opt.curve_fit(circle(np.linspace(0, 2.*np.pi, 30), r), pa_space, [x, y], p0=9))
+# res = opt.minimize(lambda arg: sum(abs(np.matmul(rot_transform(arg), np.array([x, y, np.zeros_like(x)])) - np.array([x1, y1, z1]))), x0=[0.5, 0.5, 0.])
+# print(res)

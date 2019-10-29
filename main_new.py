@@ -13,7 +13,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
 names = np.loadtxt('gal_names.txt', dtype='str')
 # print(names)
 
-images = make_images(names=names[0:2], bands='all', types='all', path=im_path)
+images = make_images(names=names[17:18], bands='all', types='all', path=im_path)
 
 @contextmanager
 def figure(**kw):
@@ -32,10 +32,11 @@ def figure(**kw):
 #%%
 images = [images]
 # print(len(images))
-
+#%%
+print(images[0])
 #%%
 importlib.reload(mod_analysis)
-for image in images[0]:
+for image in images:
     print(image.keys())
     # try:
         for band in ['g', 'i', 'r', 'u', 'z']:
@@ -83,18 +84,22 @@ for image in images[0]:
             aper.plot(lw=0.2, color='blue', label='max_resid')
             aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
             aper.plot(lw=0.2, color='red', label='corot_r')
-            aper = CircularAperture([xc, yc], r_min_slit_0[-1])
-            aper.plot(lw=0.2, color='red', label='perpendicular')
+            # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
+            # aper.plot(lw=0.2, color='red', label='perpendicular')
             plt.legend()
     # except:
     #     print(image['objid14'], 'none')
     #     pass
 
 #%%
-importlib.reload(mod_read)
-img = images[0][0]['r']
+# importlib.reload(mod_read)
+print(images[0]['r'])
+#%%
+img = images[0]['r']
 calc_slit(img, n_slit=40, convolve=True)
 
+#%%
+img.plot_slits(n_slit=40)
 #%%
 plt.figure()
 lefts0 = []
