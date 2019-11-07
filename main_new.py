@@ -121,6 +121,8 @@ for n in range(0, len(imgs)):
 
 plt.tight_layout()
 plt.show()
+
+# use along with phoutils for rescaling?
 #%%
 # img.plot_slits(n_slit=40)
 #%%
