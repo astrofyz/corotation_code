@@ -13,7 +13,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
 names = np.loadtxt('gal_names.txt', dtype='str')
 # print(names)
 
-images = make_images(names=names[17:18], bands='all', types='all', path=im_path)
+images = make_images(names=names[0:4], bands='all', types='all', path=im_path)
 
 @contextmanager
 def figure(**kw):
@@ -28,17 +28,18 @@ def figure(**kw):
     if 'savename' in kw:
         plt.savefig(kw.get('savename'))
     plt.show()
+    plt.close()
 
 #%%
 images = [images]
 # print(len(images))
 #%%
-print(images[0])
+# print(images[0])
 #%%
 importlib.reload(mod_analysis)
 for image in images:
     print(image.keys())
-    # try:
+    try:
         for band in ['g', 'i', 'r', 'u', 'z']:
             find_parabola(image[band])
 
@@ -73,7 +74,7 @@ for image in images:
         # plot "bar"
         # with figure(show=True) as fig:
         with figure(savename=out_path+'bar_'+str(image['objid14'])+'.png') as fig:
-            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3)))
+            plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image["r"]["eps"], 3)))
             plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
                        norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
             idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
@@ -87,76 +88,123 @@ for image in images:
             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
             # aper.plot(lw=0.2, color='red', label='perpendicular')
             plt.legend()
-    # except:
-    #     print(image['objid14'], 'none')
-    #     pass
+    except:
+        print(image['objid14'], 'none')
+        pass
 
 #%%
 # importlib.reload(mod_read)
-print(images[0]['r'])
+# print(images[0]['r']['eps'])
 #%%
-img = images[0]['r']
-calc_slit(img, n_slit=40, convolve=True)
+img = images[0]['r']['real.mag']
+# calc_slit(img, n_slit=40, convolve=True)
+from skimage.morphology import disk
+from skimage.filters import rank
 
-#%%
-img.plot_slits(n_slit=40)
-#%%
-plt.figure()
-lefts0 = []
-rights0 = []
-lefts1 = []
-rights1 = []
-for i, slit in enumerate(img['slits']):
-    plt.plot(img['slits.rad.pix'], slit[0])
-    curv0 = find_curvature(img['slits.rad.pix'], slit[0])
-    left = signal.argrelextrema(abs(curv0), np.less)[0][0]
-    right = signal.argrelextrema(abs(curv0), np.less)[0][-1]
-    lefts0.append([left, img['slits.angle'][i]])
-    rights0.append([right, img['slits.angle'][i]+np.pi])
-    plt.axvline(img['slits.rad.pix'][left], color='y')
-    plt.axvline(img['slits.rad.pix'][right])
-    plt.plot(img['slits.rad.pix'], slit[1])
-    curv1 = find_curvature(img['slits.rad.pix'], slit[1])
-    left = signal.argrelextrema(abs(curv1), np.less)[0][0]
-    right = signal.argrelextrema(abs(curv1), np.less)[0][-1]
-    lefts1.append([left, img['slits.angle'][i]+np.pi/2.])
-    rights1.append([right, img['slits.angle'][i]+3.*np.pi/2.])
-    plt.axvline(img['slits.rad.pix'][left], color='red')
-    plt.axvline(img['slits.rad.pix'][right], color='g')
+image = (img-np.min(img))/(np.max(img) - np.min(img))
+
+selem = disk(25)
+percentile_result = rank.mean_percentile(image, selem=selem, p0=.1, p1=.9)
+bilateral_result = rank.mean_bilateral(image, selem=selem, s0=500, s1=500)
+normal_result = rank.mean(image, selem=selem)
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10),
+                         sharex=True, sharey=True)
+ax = axes.ravel()
+
+titles = ['Original', 'Percentile mean', 'Bilateral mean', 'Local mean']
+imgs = [image, percentile_result, bilateral_result, normal_result]
+for n in range(0, len(imgs)):
+    ax[n].imshow(imgs[n], cmap=plt.cm.gray)
+    ax[n].set_title(titles[n])
+    ax[n].axis('off')
+
+plt.tight_layout()
 plt.show()
 #%%
-sizem=2.
-fig = plt.figure()
-for left in lefts0:
-    plt.scatter(img['slits.rad.pix'][left[0]]*np.cos(left[1])+256, img['slits.rad.pix'][left[0]]*np.sin(left[1])+256, color='y', marker='.', s=sizem)
-for right in rights0:
-    plt.scatter(-img['slits.rad.pix'][right[0]]*np.sin(right[1])+256, -img['slits.rad.pix'][right[0]]*np.cos(right[1])+256, color='b', marker='.', s=sizem)
-for left in lefts1:
-    plt.scatter(img['slits.rad.pix'][left[0]]*np.cos(left[1])+256, img['slits.rad.pix'][left[0]]*np.sin(left[1])+256, color='r', marker='.', s=sizem)
-for right in rights1:
-    plt.scatter(img['slits.rad.pix'][right[0]]*np.sin(right[1])+256, img['slits.rad.pix'][right[0]]*np.cos(right[1])+256, color='g', marker='.', s=sizem)
-plt.xlim(0, 512)
-plt.ylim(0, 512)
-plt.gca().set_aspect('equal', adjustable='box')
-# ax[0].set_aspect('equal')
-plt.show()
+# img.plot_slits(n_slit=40)
 #%%
-from astropy.visualization import PowerStretch
-from mpl_toolkits.mplot3d import Axes3D
-fig = plt.figure()
-ax2 = fig.add_subplot(1, 1, 1, projection='3d')
-theta, r = np.meshgrid(img['slits.angle'], img['slits.rad.pix'])
-ax2.plot_surface(r, theta, img['slits'][:, 0, :].T,
-                 linewidth=0, alpha=0.5, cmap='Blues',
-                 norm=ImageNormalize(stretch=PowerStretch(a=10)))
-ax2.plot_surface(r, theta, img['slits'][:, 1, :].T,
-                 linewidth=0, alpha=0.5, cmap='Reds',
-                 norm=ImageNormalize(stretch=PowerStretch(a=10)))
-ax2.set_zlim(bottom=ax2.get_zlim()[1], top=ax2.get_zlim()[0])
-ax2.view_init(elev=20, azim=90)
+# plt.figure()
+# lefts0 = []
+# rights0 = []
+# lefts1 = []
+# rights1 = []
+# for i, slit in enumerate(img['slits']):
+#     plt.plot(img['slits.rad.pix'], slit[0])
+#     curv0 = find_curvature(img['slits.rad.pix'], slit[0])
+#     left = signal.argrelextrema(abs(curv0), np.less)[0][0]
+#     right = signal.argrelextrema(abs(curv0), np.less)[0][-1]
+#     lefts0.append([left, img['slits.angle'][i]])
+#     rights0.append([right, img['slits.angle'][i]+np.pi])
+#     plt.axvline(img['slits.rad.pix'][left], color='y')
+#     plt.axvline(img['slits.rad.pix'][right])
+#     plt.plot(img['slits.rad.pix'], slit[1])
+#     curv1 = find_curvature(img['slits.rad.pix'], slit[1])
+#     left = signal.argrelextrema(abs(curv1), np.less)[0][0]
+#     right = signal.argrelextrema(abs(curv1), np.less)[0][-1]
+#     lefts1.append([left, img['slits.angle'][i]+np.pi/2.])
+#     rights1.append([right, img['slits.angle'][i]+3.*np.pi/2.])
+#     plt.axvline(img['slits.rad.pix'][left], color='red')
+#     plt.axvline(img['slits.rad.pix'][right], color='g')
+# plt.show()
+# #%%
+# sizem=2.
+# fig = plt.figure()
+# for left in lefts0:
+#     plt.scatter(img['slits.rad.pix'][left[0]]*np.cos(left[1])+256, img['slits.rad.pix'][left[0]]*np.sin(left[1])+256, color='y', marker='.', s=sizem)
+# for right in rights0:
+#     plt.scatter(-img['slits.rad.pix'][right[0]]*np.sin(right[1])+256, -img['slits.rad.pix'][right[0]]*np.cos(right[1])+256, color='b', marker='.', s=sizem)
+# for left in lefts1:
+#     plt.scatter(img['slits.rad.pix'][left[0]]*np.cos(left[1])+256, img['slits.rad.pix'][left[0]]*np.sin(left[1])+256, color='r', marker='.', s=sizem)
+# for right in rights1:
+#     plt.scatter(img['slits.rad.pix'][right[0]]*np.sin(right[1])+256, img['slits.rad.pix'][right[0]]*np.cos(right[1])+256, color='g', marker='.', s=sizem)
+# plt.xlim(0, 512)
+# plt.ylim(0, 512)
+# plt.gca().set_aspect('equal', adjustable='box')
+# # ax[0].set_aspect('equal')
+# plt.show()
+# #%%
+# from astropy.visualization import PowerStretch
+# from mpl_toolkits.mplot3d import Axes3D
+# fig = plt.figure()
+# ax2 = fig.add_subplot(1, 1, 1, projection='3d')
+# theta, r = np.meshgrid(img['slits.angle'], img['slits.rad.pix'])
+# ax2.plot_surface(r, theta, img['slits'][:, 0, :].T,
+#                  linewidth=0, alpha=0.5, cmap='Blues',
+#                  norm=ImageNormalize(stretch=PowerStretch(a=10)))
+# ax2.plot_surface(r, theta, img['slits'][:, 1, :].T,
+#                  linewidth=0, alpha=0.5, cmap='Reds',
+#                  norm=ImageNormalize(stretch=PowerStretch(a=10)))
+# ax2.set_zlim(bottom=ax2.get_zlim()[1], top=ax2.get_zlim()[0])
+# ax2.view_init(elev=20, azim=90)
+#
+# plt.show()
 
-plt.show()
-
+#%%
+# from skimage.morphology import disk
+# from skimage.filters import rank
+# from skimage import img_as_float
+#
+# image = img_as_float(img['real.mag'])
+# selem = disk(img['petroRad'])
+#
+# percentile_result = rank.mean_percentile(image, selem=selem, p0=.1, p1=.9)
+# bilateral_result = rank.mean_bilateral(image, selem=selem, s0=500, s1=500)
+# normal_result = rank.mean(image, selem=selem)
+#
+# fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10),
+#                          sharex=True, sharey=True)
+# ax = axes.ravel()
+#
+# titles = ['Original', 'Percentile mean', 'Bilateral mean', 'Local mean']
+# imgs = [image, percentile_result, bilateral_result, normal_result]
+# for n in range(0, len(imgs)):
+#     ax[n].imshow(imgs[n], cmap=plt.cm.gray)
+#     ax[n].set_title(titles[n])
+#     ax[n].axis('off')
+#
+# plt.tight_layout()
+# plt.show()
 #%%
 #
 # ax2.scatter(
