@@ -13,7 +13,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
 names = np.loadtxt('gal_names.txt', dtype='str')
 # print(names)
 
-images = make_images(names=names[0:4], bands='all', types='all', path=im_path)
+images = make_images(names=names[0:2], bands='all', types='all', path=im_path)
 
 @contextmanager
 def figure(**kw):
@@ -124,8 +124,10 @@ plt.show()
 
 # use along with phoutils for rescaling?
 #%%
-# img.plot_slits(n_slit=40)
+img = images[0]['r']
+img.plot_slits(n_slit=40)
 #%%
+img.keys()
 # plt.figure()
 # lefts0 = []
 # rights0 = []

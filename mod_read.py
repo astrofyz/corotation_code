@@ -76,11 +76,16 @@ class ImageClass(dict):
     def plot_slits(self, n_slit=1, **kw):
         if 'slits' not in self.keys():
             calc_slit(self, n_slit=n_slit, angle=self['pa'], convolve=True)
-        # print(self.keys())
 
         f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12))
         ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
-        ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
+
+        # print(type(self))
+
+        if 'real.mag' in self.keys():
+            ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
+        else:
+            ax1.imshow(self['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
         # print(self['slits'])
         idx = np.argmax([sum(abs(row)) for row in self['residuals']])
         for i, slit in enumerate(self['slits']):
@@ -100,7 +105,11 @@ class ImageClass(dict):
         ax3.axhline(0.)
         ax3.legend(handles=line_max, labels='pa = {}'.format(np.round(self['slits.angle'][idx], 3)))
         ax3.grid()
-        xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
+
+        if 'real.mag' in self.keys():
+            xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
+        else:
+            xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real'])])
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
         ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')
         if 'savename' in kw:
@@ -111,7 +120,7 @@ class ImageClass(dict):
 
 def make_images(names, bands='all', types='all',
             path_table='/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv',
-            path='/home/mouse13/corotation/clear_outer', **kwargs):
+            path='/home/mouse13/corotation/clear_outer', **kw):
     """names : string of 19 digits; if list - list of dictionaries returned, else - dictionary class;
        path_table : path to table with all information for images;
        path : path to dir with images (default: /home/mouse13/corotation/clear_outer);
@@ -124,62 +133,96 @@ def make_images(names, bands='all', types='all',
         types = ['obj', 'cat', 'seg', 'real']
     images = []
 
-    all_table = pd.read_csv(path_table)
+    if '.csv' in path_table:
+        all_table = pd.read_csv(path_table)
+    if '.cat' in path_table:
+        all_table = pd.read_table(path_table, sep=' ')
 
-    for name in names:
-        image = ImageClass()
-        for prop_name in ['name', 'objid14', 'ra', 'dec']:
-            image.prop(prop_name, data=all_table.loc[all_table.objid14 == int(name), [prop_name]].values[0][0])
-        for band in bands:
-            image[band] = ImageClass()
-
+    if 'SE' in kw:
+        for name in names:
+            image = ImageClass()
             for prop_name in ['name', 'objid14', 'ra', 'dec']:
-                image[band].prop(prop_name, data=image[prop_name])
-            for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
-                image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
-                                                               [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
+                image.prop(prop_name, data=all_table.loc[all_table.objid14 == int(name), [prop_name]].values[0][0])
+            for band in bands:
+                image[band] = ImageClass()
 
-            for tp in types:
-                if tp != 'real':
-                    fname = '/'.join([path, 'se_frames', band, tp, band+name+'-'+dict_type[tp]+'.fits'])  # возможно это стоит изменить
-                else:
-                    fname = '/'.join([path, band, 'stamps128', band+name+'.fits'])
+                for prop_name in ['name', 'objid14', 'ra', 'dec']:
+                    image[band].prop(prop_name, data=image[prop_name])
+                if 'calibration' in kw:
+                    for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
+                        image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
+                                                                       [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
+                for prop_name in ['petroRad', 'petroR50']:
+                    image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
+                                                                   [prop_name + '_{}'.format(band)]].values[0][0])
 
-                if tp != 'cat':
-                    image[band].prop(property_name=tp, data=fits.open(fname)[0].data)
-                    image[band].prop(property_name=tp+'.header', data=fits.open(fname)[0].header)
-                else:
-                    image[band].prop(property_name=tp, data=fits.open(fname))
-                fits.open(fname).close()
-        images.append(image)
+                for tp in types:
+                    if tp != 'real':
+                        fname = '/'.join([path, 'se_frames', band, tp, band+name+'-'+dict_type[tp]+'.fits'])
+                    else:
+                        fname = '/'.join([path, band, 'stamps128', band+name+'.fits'])
 
-    max_seeing = max([image[band]['seeing'] for band in bands])
-    for band in bands:
-        if image[band]['seeing'] != max_seeing:
-            image[band]['real'] = correct_FWHM(image[band], max_seeing)
+                    if tp != 'cat':
+                        image[band].prop(property_name=tp, data=fits.open(fname)[0].data)
+                        image[band].prop(property_name=tp+'.header', data=fits.open(fname)[0].header)
+                    else:
+                        image[band].prop(property_name=tp, data=fits.open(fname))
+                    fits.open(fname).close()
+            images.append(image)
 
-    for image in images:
+    if 'manga' in kw:
+        for name in names:
+            image = ImageClass()
+            for prop_name in ['objID', 'ra', 'dec']:  # check column names
+                image.prop(prop_name, data=all_table.loc[all_table.objID == int(name), [prop_name]].values[0][0])
+            img_file = fits.open(path+f'{name}.fits')
+            for i, band in enumerate(img_file[0].header['BANDS']):
+                image[band] = ImageClass()
+                image[band].prop(property_name='real', data=img_file[0].data[i])
+                for prop_name in ['petroRad', 'petroR50', 'petroR90']:
+                    try:
+                        image[band].prop(prop_name, data=all_table.loc[all_table.objID == int(name),
+                                                                       [prop_name + '_{}'.format(band)]].values[0][0])
+                    except:
+                        col_err = prop_name + f'_{band}'
+                        image[band].prop(prop_name, data=0.)
+                        if 'warning' in kw:
+                            print(f'WARNING: no column "{col_err}"; set with 0')  # лучше с None
+                image[band].prop('bg', data=calc_bkg(image[band]['real'], None, mode='nearest'))
+                total_error = calc_total_error(image[band]['real'], image[band]['bg'].background_rms, 4.64)
+                image[band].prop('total_error', data=total_error)
+            images.append(image)
+
+
+    if 'seeing' in kw:
+        max_seeing = max([image[band]['seeing'] for band in bands])
         for band in bands:
-            w = wcs.WCS(image[band]['real.header'])
-            image[band].prop(property_name=['x.real', 'y.real'],
-                             data=np.array(w.wcs_world2pix(image[band]['ra'], image[band]['dec'], 1)).flatten())
-            xc, yc = [int(dim / 2) for dim in np.shape(image[band]['real'])]
-            image[band].prop('mask', data=main_obj(cat=image[band]['cat'],
-                                                   mask=image[band]['seg'],
-                                                   xy=image[band].prop(['x.real', 'y.real'])))
-            image[band].prop('mask.center', data=shift(image[band]['mask'],
-                                                       [yc-image[band]['y.real'], xc-image[band]['x.real']], mode='nearest'))
-            image[band].prop('real.center', data=shift(image[band]['real'],
-                                                       [yc - image[band]['y.real'], xc - image[band]['x.real']],
-                                                       mode='nearest'))
-            image[band].prop('seg.center', data=shift(image[band]['seg'],
-                                                      [yc - image[band]['y.real'], xc - image[band]['x.real']],
-                                                      mode='nearest'))
-            image[band].prop('bg', data=calc_bkg(image[band]['real.center'], image[band]['seg.center'], mode='nearest'))
-            image[band].prop('real.bg', data=image[band]['real.center'] - image[band]['bg'].background)
-            Apix = 0.396
-            image[band].prop('zp', data=-(image[band]['aa']+image[band]['kk']*image[band]['airmass']) + 2.5*np.log10(Apix))
-            image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp']))
+            if image[band]['seeing'] != max_seeing:
+                image[band]['real'] = correct_FWHM(image[band], max_seeing)
+
+    if 'correction' in kw:
+        for image in images:
+            for band in bands:
+                w = wcs.WCS(image[band]['real.header'])
+                image[band].prop(property_name=['x.real', 'y.real'],
+                                 data=np.array(w.wcs_world2pix(image[band]['ra'], image[band]['dec'], 1)).flatten())
+                xc, yc = [int(dim / 2) for dim in np.shape(image[band]['real'])]
+                image[band].prop('mask', data=main_obj(cat=image[band]['cat'],
+                                                       mask=image[band]['seg'],
+                                                       xy=image[band].prop(['x.real', 'y.real'])))
+                image[band].prop('mask.center', data=shift(image[band]['mask'],
+                                                           [yc-image[band]['y.real'], xc-image[band]['x.real']], mode='nearest'))
+                image[band].prop('real.center', data=shift(image[band]['real'],
+                                                           [yc - image[band]['y.real'], xc - image[band]['x.real']],
+                                                           mode='nearest'))
+                image[band].prop('seg.center', data=shift(image[band]['seg'],
+                                                          [yc - image[band]['y.real'], xc - image[band]['x.real']],
+                                                          mode='nearest'))
+                image[band].prop('bg', data=calc_bkg(image[band]['real.center'], image[band]['seg.center'], mode='nearest'))
+                image[band].prop('real.bg', data=image[band]['real.center'] - image[band]['bg'].background)
+                Apix = 0.396
+                image[band].prop('zp', data=-(image[band]['aa']+image[band]['kk']*image[band]['airmass']) + 2.5*np.log10(Apix))
+                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp']))
 
     if len(images) == 1:
         return images[0]

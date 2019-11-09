@@ -10,6 +10,7 @@ from astropy.visualization.mpl_normalize import ImageNormalize
 # from astropy.stats import sigma_clipped_stats
 from photutils.isophote import EllipseGeometry, Ellipse
 from photutils import EllipticalAperture, Background2D, EllipticalAnnulus, aperture_photometry, RectangularAperture
+from astropy.stats import SigmaClip
 from photutils.utils import calc_total_error
 from scipy.interpolate import splrep, splev, UnivariateSpline
 import scipy.signal as signal
@@ -72,8 +73,12 @@ def calc_bkg(image, mask, **kwargs):
         size = kwargs.get('size')
     else:
         size = int(np.shape(image)[0]/4)
-    bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
-    # print('background', bkg.background_median)
+
+    if mask != None:
+        bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
+    else:
+        sigma_clip = SigmaClip(sigma=3.)
+        bkg = Background2D(image, (size, size), filter_size=(3, 3), sigma_clip = sigma_clip)
     return bkg
 
 

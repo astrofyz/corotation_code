@@ -402,11 +402,18 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     kw: convolve: background is required"""
 
     if all(['r.' not in key.lower() for key in image.keys()]):
-        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+        if 'seg.center' in image.keys():
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+        else:
+            image['r.max.pix'] = image['petroR90']*2  # or petroR90 * 2.; check .prop()
 
     slits = []
     errors = []
-    centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    if 'real.center' in image.keys():
+        centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    else:
+        centre = np.array([int(dim / 2) for dim in np.shape(image['real'])])
+
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)
     else:
@@ -438,8 +445,12 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         apertures_par = RectangularAperture(r_par, width, step, pa_space[i])
         apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
 
-        table_par = aperture_photometry(image['real.mag'], apertures_par, error=image['total_error'])
-        table_per = aperture_photometry(image['real.mag'], apertures_per, error=image['total_error'])
+        if 'mag' in kw:
+            table_par = aperture_photometry(image['real.mag'], apertures_par, error=image['total_error'])
+            table_per = aperture_photometry(image['real.mag'], apertures_per, error=image['total_error'])
+        else:
+            table_par = aperture_photometry(image['real'], apertures_par, error=image['total_error'])
+            table_per = aperture_photometry(image['real'], apertures_per, error=image['total_error'])
 
         # print(table_par)
 
