@@ -175,10 +175,26 @@ def make_images(names, bands='all', types='all',
             image = ImageClass()
             for prop_name in ['objID', 'ra', 'dec']:  # check column names
                 image.prop(prop_name, data=all_table.loc[all_table.objID == int(name), [prop_name]].values[0][0])
-            img_file = fits.open(path+f'{name}.fits')
-            for i, band in enumerate(img_file[0].header['BANDS']):
+            img_file = fits.open(path+f'input/{name}.fits')
+            if bands == None:
+                bands = img_file[0].header['BANDS']
+            else:
+                bands = bands
+            for band in bands:
                 image[band] = ImageClass()
-                image[band].prop(property_name='real', data=img_file[0].data[i])
+                if (types == None) or ('real' in types):
+                    id_band = img_file[0].header['BANDS'].find(band)
+                    image[band].prop(property_name='real', data=img_file[0].data[id_band])
+                if types != None:
+                    for tp in list(set(types) - set(['real'])):
+                        if tp != 'real':
+                            fname = '/'.join([path, 'se_input', tp, name+'-'+dict_type[tp]+'.fits'])
+                        if tp != 'cat':
+                            image[band].prop(property_name=tp, data=fits.open(fname)[0].data)
+                            image[band].prop(property_name=tp+'.header', data=fits.open(fname)[0].header)
+                        else:
+                            image[band].prop(property_name=tp, data=fits.open(fname))
+                        fits.open(fname).close()
                 for prop_name in ['petroRad', 'petroR50', 'petroR90']:
                     try:
                         image[band].prop(prop_name, data=all_table.loc[all_table.objID == int(name),
