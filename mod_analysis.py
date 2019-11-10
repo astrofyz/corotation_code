@@ -22,6 +22,7 @@ from astropy.convolution import Gaussian1DKernel, convolve
 import os
 import mod_read
 from contextlib import contextmanager
+from mod_prep_im import *
 
 
 def find_outer(image, **kwargs):
@@ -401,17 +402,26 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     width : width of slit
     kw: convolve: background is required"""
     if all(['r.' not in key.lower() for key in image.keys()]):
-        if 'seg' in image.keys():  #change centered to without .center
+        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
             image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
-        else:
-            image['r.max.pix'] = image['petroR90']*2  # or petroR90 * 2.; check .prop()
+        elif ('seg' not in image.keys()) or ('petro' in kw):
+            image['r.max.pix'] = image['petroR90']*3  # or petroR90 * 2.; check .prop()
 
     slits = []
     errors = []
-    if 'real.center' in image.keys():
-        centre = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    centre = np.array([int(dim / 2) for dim in np.shape(image['real'])])
+
+    image_work = np.zeros_like(image['real'])
+
+    if 'mag' in kw:
+        image_work[:, :] = image['real.mag'][:, :]
     else:
-        centre = np.array([int(dim / 2) for dim in np.shape(image['real'])])
+        image_work[:, :] = image['real'][:, :]
+
+    if 'mask' in kw:
+        if ('seg' in image.keys()) & ('cat' in image.keys()):
+            main_obj_mask = main_obj(image['cat'], image['seg'], xy=centre)
+            image_work[main_obj_mask == 0] = image['bg'].background[main_obj_mask == 0]
 
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)
@@ -445,11 +455,11 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
 
         if 'mag' in kw:
-            table_par = aperture_photometry(image['real.mag'], apertures_par, error=image['total_error'])
-            table_per = aperture_photometry(image['real.mag'], apertures_per, error=image['total_error'])
+            table_par = aperture_photometry(image_work, apertures_par, error=image['total_error'])
+            table_per = aperture_photometry(image_work, apertures_per, error=image['total_error'])
         else:
-            table_par = aperture_photometry(image['real'], apertures_par, error=image['total_error'])
-            table_per = aperture_photometry(image['real'], apertures_per, error=image['total_error'])
+            table_par = aperture_photometry(image_work, apertures_par, error=image['total_error'])
+            table_per = aperture_photometry(image_work, apertures_per, error=image['total_error'])
 
         # print(table_par)
 

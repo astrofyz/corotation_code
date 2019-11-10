@@ -73,19 +73,34 @@ class ImageClass(dict):
         plt.legend()
         plt.show()
 
-    def plot_slits(self, n_slit=1, **kw):
+    def plot_slits(self, n_slit=1, a_stretch=5000., mag=False, rotate=True, **kw):
         if 'slits' not in self.keys():
             calc_slit(self, n_slit=n_slit, angle=self['pa'], convolve=True)
 
-        f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12))
-        ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
+        if 'cut' in kw:
+            f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12), sharex=True)
+            min = int(np.min(self['slits.rad.pix']))
+            max = int(np.max(self['slits.rad.pix']))
+            if mag & ('real.mag' in self.keys()):
+                ax1.imshow(self['real.mag'][256+min:256+max, 256+min:256+max], origin='lower', cmap='Greys',
+                           extent=(min, max, min, max))
+            else:
+                if rotate:
+                    ax1.imshow(rotate_and_scale(self['real'], self['angle.max']+np.pi/2.)[256+min:256+max, 256+min:256+max],
+                               extent=(min, max, min, max), origin='lower', cmap='Greys',
+                               norm=ImageNormalize(stretch=LogStretch(a=a_stretch)))
+                else:
+                    ax1.imshow(self['real'][256+min:256+max, 256+min:256+max],
+                               extent=(min, max, min, max), origin='lower', cmap='Greys',
+                               norm=ImageNormalize(stretch=LogStretch(a=a_stretch)))
 
-        # print(type(self))
-
-        if 'real.mag' in self.keys():
-            ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
         else:
-            ax1.imshow(self['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
+            f, (ax1, ax2, ax3) = plt.subplots(3, 1, gridspec_kw={'height_ratios': [3, 1, 1]}, figsize=(8, 12))
+            ax1.set_title('{}\nra={}, dec={}'.format(self['name'], np.round(self['ra'], 3), np.round(self['dec'], 3)))
+            if 'real.mag' in self.keys():
+                ax1.imshow(self['real.mag'], origin='lower', cmap='Greys')
+            else:
+                ax1.imshow(self['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
         # print(self['slits'])
         idx = np.argmax([sum(abs(row)) for row in self['residuals']])
         for i, slit in enumerate(self['slits']):
@@ -110,8 +125,25 @@ class ImageClass(dict):
             xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
         else:
             xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real'])])
-        ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
-        ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')
+        if 'cut' in kw:
+            if rotate:  #переписать это надо красиов.
+                ax1.plot(self['slits.rad.pix'] * np.cos(0.),
+                         self['slits.rad.pix'] * np.sin(0.), color='orange')
+                ax1.plot(self['slits.rad.pix'] * np.cos(0. + np.pi / 2.),
+                         self['slits.rad.pix'] * np.sin(0. + np.pi / 2.), color='navy')
+            else:
+                ax1.plot(self['slits.rad.pix'] * np.cos(self['angle.max']),
+                         self['slits.rad.pix'] * np.sin(self['angle.max']), color='orange')
+                ax1.plot(self['slits.rad.pix'] * np.cos(self['angle.max'] + np.pi / 2.),
+                         self['slits.rad.pix'] * np.sin(self['angle.max'] + np.pi / 2.), color='navy')
+            # ax1.plot(self['slits.rad.pix'] * np.cos(self['slits.angle'][idx]),
+            #          self['slits.rad.pix'] * np.sin(self['slits.angle'][idx]), color='orange')
+            # ax1.plot(self['slits.rad.pix'] * np.cos(self['slits.angle'][idx] + np.pi / 2.),
+            #          self['slits.rad.pix'] * np.sin(self['slits.angle'][idx] + np.pi / 2.), color='navy')
+        else:
+            ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]), color='orange')
+            ax1.plot(xc+self['slits.rad.pix']*np.cos(self['slits.angle'][idx]+np.pi/2.), yc+self['slits.rad.pix']*np.sin(self['slits.angle'][idx]+np.pi/2.), color='navy')
+        plt.tight_layout()
         if 'savename' in kw:
             plt.savefig(kw.get('savename'), dpi=120)
         plt.show()
@@ -226,6 +258,7 @@ def make_images(names, bands='all', types='all',
                 image[band].prop('mask', data=main_obj(cat=image[band]['cat'],
                                                        mask=image[band]['seg'],
                                                        xy=image[band].prop(['x.real', 'y.real'])))
+                # put centered data into mask/real/seg
                 image[band].prop('mask.center', data=shift(image[band]['mask'],
                                                            [yc-image[band]['y.real'], xc-image[band]['x.real']], mode='nearest'))
                 image[band].prop('real.center', data=shift(image[band]['real'],

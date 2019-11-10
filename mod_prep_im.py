@@ -104,3 +104,16 @@ def correct_FWHM(image, fwhm_res):
     image_res = gaussian_filter(image['real'], sigma_f)
     return image_res
 
+
+def rotate_and_scale(image, angle, sx=1., sy=1.):
+    x0, y0 = 0.5*np.array(np.shape(image))
+    x1, y1 = 0.5*np.array(np.shape(image))
+
+    rot_mtx = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])  #rotation matrix
+    sca_mtx = np.array([[sx, 0], [0., sy]])  # scaling matrix; probably could be replased by s
+    aff_mtx = np.dot(sca_mtx, rot_mtx)
+
+    offset = np.array([x0, y0]) - np.dot(np.array([x1, y1]), aff_mtx)
+    im_res = affine_transform(image, aff_mtx.T, mode='nearest', offset=offset)
+
+    return im_res
