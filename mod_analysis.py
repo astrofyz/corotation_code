@@ -403,9 +403,12 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     kw: convolve: background is required"""
     if all(['r.' not in key.lower() for key in image.keys()]):
         if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
-            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
+            try:
+                image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
+            except:
+                image['r.max.pix'] = image['petroR90'] * 3
         elif ('seg' not in image.keys()) or ('petro' in kw):
-            image['r.max.pix'] = image['petroR90']*3  # or petroR90 * 2.; check .prop()
+            image['r.max.pix'] = image['petroR90']  # or petroR90 * 2.; check .prop()
 
     slits = []
     errors = []
@@ -420,8 +423,11 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
 
     if 'mask' in kw:
         if ('seg' in image.keys()) & ('cat' in image.keys()):
-            main_obj_mask = main_obj(image['cat'], image['seg'], xy=centre)
-            image_work[main_obj_mask == 0] = image['bg'].background[main_obj_mask == 0]
+            try:
+                main_obj_mask = main_obj(image['cat'], image['seg'], xy=centre)
+                image_work[main_obj_mask == 0] = image['bg'].background[main_obj_mask == 0]
+            except:
+                print('WARNING; main_obj_mask')
 
     if n_slit > 1:
         pa_space = np.linspace(0, np.pi/2., n_slit)

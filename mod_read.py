@@ -146,7 +146,8 @@ class ImageClass(dict):
         plt.tight_layout()
         if 'savename' in kw:
             plt.savefig(kw.get('savename'), dpi=120)
-        plt.show()
+        # plt.show()
+        plt.close()
 
 
 

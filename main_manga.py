@@ -6,6 +6,8 @@ from mod_analysis import *
 from contextlib import contextmanager
 import importlib
 import os
+import matplotlib
+matplotlib.use('Agg')
 
 
 @contextmanager
@@ -30,11 +32,13 @@ im_path = '/media/mouse13/My Passport/corotation/manga/input/'
 out_path = '/media/mouse13/My Passport/corotation/manga/pics/'
 
 names = [elem.split('.')[0] for elem in os.listdir(im_path)]
-
+#%%
+print(len(names))
+#%%
 #
 # all_table = pd.read_table(path_table, sep=' ')
 # all_table.loc[all_table.objID == int(names[0]), ['ra', 'dec']].values[0][0]
-
+#%%
 # # RUN SExtractor........................................................................................................
 # # dirbase_correct = dirbase.replace("\\ ", " ")
 # os.system(f'touch {dirbase}makeSEscript.sh')
@@ -47,11 +51,18 @@ names = [elem.split('.')[0] for elem in os.listdir(im_path)]
 # os.system('sh makeSEscript.sh')
 # #.......................................................................................................................
 #%%
-images = make_images(names=names[:], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=path_table, manga=True)
+from time import time
+start = time()
+dn = 20
+n = len(names)
+for chunk in range(0, n, dn):
+    dc = min(chunk+dn, n)
+    images = make_images(names=names[chunk:dc], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=path_table, manga=True)
+    for i in range(len(images)):
+        calc_slit(images[i]['z'], 60, convolve=True, mask=True, petro=True)  #перестать делать это кейвордами
+        images[i]['z'].plot_slits(n_slit=60, rotate=True, savename=out_path+'petro_'+str(images[i]['objID'])+'.png')
 
-for i in range(len(images)):
-    calc_slit(images[i]['z'], 60, convolve=True, petro=True)  #перестать делать это кейвордами
-    images[i]['z'].plot_slits(n_slit=60, cut=True, rotate=True, savename=out_path+'petro_'+str(images[i]['objID'])+'.png')
+print(time() - start)
 
 #%%
 main_obj_mask = main_obj(images[1]['z']['cat'], images[1]['z']['seg'], xy=[256, 256])
