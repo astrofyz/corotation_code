@@ -24,6 +24,7 @@ import scipy.fftpack as fft
 from astropy.convolution import Gaussian1DKernel, convolve
 import os
 from mod_prep_im import *
+from scipy.optimize import minimize_scalar
 
 
 class ImageClass(dict):
@@ -103,6 +104,20 @@ class ImageClass(dict):
                 ax1.imshow(self['real'], origin='lower', cmap='Greys', norm=ImageNormalize(stretch=LogStretch()))
         # print(self['slits'])
         idx = np.argmax([sum(abs(row)) for row in self['residuals']])
+
+        # residual = images[1]['z']['residuals'][idx]
+        # rad = images[1]['z']['slits.rad.pix']
+        err = np.mean(self['total_error'])*1.2*3.5
+        print(self['slits.rad.pix'], self['residuals'][idx], err)
+        try:
+            minrad = np.min(self['slits.rad.pix'])
+            maxrad = np.max(self['slits.rad.pix'])
+            ring_rad = minimize_scalar(lambda x: abs(interp1d(self['slits.rad.pix'], abs(self['residuals'][idx]))(x) - err),
+                                       method='Bounded', bounds=[minrad, maxrad]).x
+        except:
+            print('WARNING: no ring radius')
+            ring_rad = self['petroR90']
+
         for i, slit in enumerate(self['slits']):
             if i == idx:
                 ax2.plot(self['slits.rad.pix'], slit[0], color='coral', lw=1)
@@ -125,6 +140,14 @@ class ImageClass(dict):
             xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real.mag'])])
         else:
             xc, yc = np.array([int(dim / 2) for dim in np.shape(self['real'])])
+
+        if 'cut' in kw:
+            aper = CircularAperture([0, 0], abs(ring_rad))
+            aper.plot(axes=ax1, lw=0.2, color='blue', label='ring')
+        else:
+            aper = CircularAperture([xc, yc], abs(ring_rad))
+            aper.plot(axes=ax1, lw=0.2, color='blue', label='ring')
+
         if 'cut' in kw:
             if rotate:  #переписать это надо красиов.
                 ax1.plot(self['slits.rad.pix'] * np.cos(0.),
@@ -185,8 +208,8 @@ def make_images(names, bands='all', types='all',
                     for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
                         image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
                                                                        [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
-                for prop_name in ['petroRad', 'petroR50']:
-                    image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
+                for prop_name in ['petroRad', 'petroR50', 'petroR90']:
+                    image[band].prop(prop_name, data=(1./0.396)*all_table.loc[all_table.objid14 == int(name),
                                                                    [prop_name + '_{}'.format(band)]].values[0][0])
 
                 for tp in types:
