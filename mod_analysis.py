@@ -163,7 +163,11 @@ def calc_sb(image, **kw):
 
     if all(['r.' not in key.lower() for key in image.keys()]):
         image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
-    step = image['FD']
+
+    if 'step' in kw:
+        step = kw['step']
+    else:
+        step = image['FD']
 
     if 'eps' not in image:
         try:
@@ -373,6 +377,7 @@ def find_parabola(image, **kw):
         ax1.axvline(rad_pix[top])
         ax1.set_xlabel('r (arcsec)')
         ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
+        ax1.set_title(f"{image['objid14']}\n{kw['band']}")
         ax1.legend()
         ax1.set_ylim(max(sb), min(sb))
         ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
@@ -380,6 +385,7 @@ def find_parabola(image, **kw):
         ax2.axhline(0.)
         ax2.legend()
         plt.grid()
+        plt.savefig(kw['savename'])
         plt.show()
         plt.close()
     # нужно что-то записать в класс. посмотреть, что нужно дальше и записать его

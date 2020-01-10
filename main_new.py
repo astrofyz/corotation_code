@@ -13,7 +13,7 @@ out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
 names = np.loadtxt('gal_names.txt', dtype='str')
 # print(names)
 
-images = make_images(names=names[0:2], bands='all', types='all', path=im_path)
+images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 
 @contextmanager
 def figure(**kw):
@@ -31,17 +31,19 @@ def figure(**kw):
     plt.close()
 
 #%%
-images = [images]
+# images = [images]
+# #%%
 # print(len(images))
+# #%%
+# print(images)
 #%%
-# print(images[0])
-#%%
-importlib.reload(mod_analysis)
+# importlib.reload(mod_analysis)
 for image in images:
-    print(image.keys())
+    # print(image.keys())
+    # print('lol')
     try:
         for band in ['g', 'i', 'r', 'u', 'z']:
-            find_parabola(image[band])
+            find_parabola(image[band]) #, plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objid14'])}_{band}.png")
 
         calc_slit(image['r'], 40, convolve=True)
         # plot surface brigtness profiles with fitted parabola
@@ -50,7 +52,7 @@ for image in images:
         #     plt.gca().invert_yaxis()
         #     for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
         #         plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-        #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.2)
+        #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
         #         plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
         #         plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
         #     plt.legend()
@@ -77,14 +79,22 @@ for image in images:
             plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image["r"]["eps"], 3)))
             plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
                        norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
-            idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
-            idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
+            # idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
+            # idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
             # print(image['r']['slits.rad.pix'][idx_bar])
             xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
-            aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
-            aper.plot(lw=0.2, color='blue', label='max_resid')
+            # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
+            # aper.plot(lw=0.2, color='blue', label='max_resid')
             aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
-            aper.plot(lw=0.2, color='red', label='corot_r')
+            aper.plot(lw=0.3, color='red', label='corot_r')
+            aper = CircularAperture([xc, yc], abs(image['g']['sb.rad.min']))
+            aper.plot(lw=0.3, color='blue', label='corot_g')
+            aper = CircularAperture([xc, yc], abs(image['i']['sb.rad.min']))
+            aper.plot(lw=0.3, color='gold', label='corot_i')
+            aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
+            aper.plot(lw=0.3, color='green', label='corot_u')
+            aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
+            aper.plot(lw=0.3, color='purple', label='corot_z')
             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
             # aper.plot(lw=0.2, color='red', label='perpendicular')
             plt.legend()
@@ -92,42 +102,80 @@ for image in images:
         print(image['objid14'], 'none')
         pass
 
+
+#%%
+importlib.reload(mod_analysis)
+def find_min_new(image):
+    n = 100
+    rspace = np.linspace(0, n, image['r.max.pix'])
+    min_step = image['FD']/2.
+
+    print(image['r.max.pix'])
+
+    rads, sbs = [[], []]
+    for k in range(1, int(image['r.max.pix']*2/(3.*image['FD']))):
+        print(k*min_step)
+        r, sb, err = calc_sb(image, step=k*min_step, error=True)
+        rads.append(r)
+        sbs.append(sb)
+
+    return rads, sbs
+
+#%%
+print(images[0]['objid14'])
+#%%
+rads, sbs = find_min_new(images[0]['r'])
+
+#%%
+with figure() as fig:
+    for i in range(len(rads)):
+        plt.plot(rads[i], sbs[i], color='navy', alpha=0.3)
+    plt.gca().invert_yaxis()
+
+#%%
+for i in range(len(rads))[::-1]:
+    with figure(savename=out_path+'gif/sb_{0:04d}.png'.format(i)) as fig:
+        for j in range(i, len(rads))[::-1]:
+            plt.plot(rads[j], sbs[j], color='navy', alpha=0.3)
+        # plt.gca().invert_yaxis()
+        plt.xlim(0, 120)
+        plt.ylim(26, 19)
 #%%
 # importlib.reload(mod_read)
 # print(images[0]['r']['eps'])
 #%%
-img = images[0]['r']['real.mag']
+# img = images[0]['r']['real.mag']
 # calc_slit(img, n_slit=40, convolve=True)
-from skimage.morphology import disk
-from skimage.filters import rank
-
-image = (img-np.min(img))/(np.max(img) - np.min(img))
-
-selem = disk(25)
-percentile_result = rank.mean_percentile(image, selem=selem, p0=.1, p1=.9)
-bilateral_result = rank.mean_bilateral(image, selem=selem, s0=500, s1=500)
-normal_result = rank.mean(image, selem=selem)
-
-fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10),
-                         sharex=True, sharey=True)
-ax = axes.ravel()
-
-titles = ['Original', 'Percentile mean', 'Bilateral mean', 'Local mean']
-imgs = [image, percentile_result, bilateral_result, normal_result]
-for n in range(0, len(imgs)):
-    ax[n].imshow(imgs[n], cmap=plt.cm.gray)
-    ax[n].set_title(titles[n])
-    ax[n].axis('off')
-
-plt.tight_layout()
-plt.show()
+# from skimage.morphology import disk
+# from skimage.filters import rank
+#
+# image = (img-np.min(img))/(np.max(img) - np.min(img))
+#
+# selem = disk(25)
+# percentile_result = rank.mean_percentile(image, selem=selem, p0=.1, p1=.9)
+# bilateral_result = rank.mean_bilateral(image, selem=selem, s0=500, s1=500)
+# normal_result = rank.mean(image, selem=selem)
+#
+# fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 10),
+#                          sharex=True, sharey=True)
+# ax = axes.ravel()
+#
+# titles = ['Original', 'Percentile mean', 'Bilateral mean', 'Local mean']
+# imgs = [image, percentile_result, bilateral_result, normal_result]
+# for n in range(0, len(imgs)):
+#     ax[n].imshow(imgs[n], cmap=plt.cm.gray)
+#     ax[n].set_title(titles[n])
+#     ax[n].axis('off')
+#
+# plt.tight_layout()
+# plt.show()
 
 # use along with phoutils for rescaling?
 #%%
-img = images[0]['r']
-img.plot_slits(n_slit=40)
-#%%
-img.keys()
+# img = images[0]['r']
+# img.plot_slits(n_slit=40)
+# #%%
+# img.keys()
 # plt.figure()
 # lefts0 = []
 # rights0 = []

@@ -74,7 +74,7 @@ def calc_bkg(image, mask, **kwargs):
     else:
         size = int(np.shape(image)[0]/4)
 
-    if mask != None:
+    if mask.all() != None:
         bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
     else:
         sigma_clip = SigmaClip(sigma=3.)

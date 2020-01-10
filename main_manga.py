@@ -55,6 +55,7 @@ from time import time
 start = time()
 dn = 20
 n = len(names)
+# n = 5
 for chunk in range(0, n, dn):
     dc = min(chunk+dn, n)
     images = make_images(names=names[chunk:dc], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=path_table, manga=True)
@@ -65,11 +66,13 @@ for chunk in range(0, n, dn):
 print(time() - start)
 
 #%%
-main_obj_mask = main_obj(images[1]['z']['cat'], images[1]['z']['seg'], xy=[256, 256])
+print(images)
+#%%
+main_obj_mask = main_obj(images['z']['cat'], images['z']['seg'], xy=[256, 256])
 
 #%%
 with figure() as fig:
-    img_rot = rotate_and_scale(images[0]['z']['real'], images[0]['z']['angle.max'])
+    img_rot = rotate_and_scale(images['z']['real'], images['z']['angle.max'])
     plt.imshow(img_rot, origin='lower', norm=ImageNormalize(stretch=LogStretch()))
 
 #%%
