@@ -508,5 +508,63 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     return rad, slits
 
 
-
+# def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, plot=False, **kw):
+#     image_work = image['real']
+#     value = np.sqrt(((image_work.shape[0] / 2.0) ** 2.0) + ((image_work.shape[1] / 2.0) ** 2.0))
+#
+#     polar_image = cv2.linearPolar(image_work, (image_work.shape[0] / 2, image_work.shape[1] / 2), value, cv2.WARP_FILL_OUTLIERS)
+#     # print(type(polar_image), np.shape(polar_image))
+#
+#     # norm = ImageNormalize(stretch=LogStretch())
+#     # plt.figure()
+#     # plt.imshow(polar_image, origin='lower', cmap='Greys')
+#     # ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
+#     # plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
+#     # plt.show()
+#
+#     # r_range = np.linspace(0, nx, 50)
+#     # phi_range = np.linspace(0, 2 * np.pi, 150)
+#
+#     if all(['r.' not in key.lower() for key in image.keys()]):
+#         if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
+#             try:
+#                 image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
+#             except:
+#                 image['r.max.pix'] = image['petroR90'] * 3
+#         elif ('seg' not in image.keys()) or ('petro' in kw):
+#             image['r.max.pix'] = image['petroR90']  # or petroR90 * 2.; check .prop()
+#
+#     len_I = image['r.max.pix']
+#     I = np.zeros((len(harmonics), len_I))
+#
+#     j = 0
+#     for r in range(sig, len_I-sig):
+#         # data_r = polar_image[:, r]
+#         data_r = [np.mean(row) for row in polar_image[:, r-sig:r+sig]]
+#         data_fft = fft.dct(data_r)
+#         i = 0
+#         for harmonic in harmonics:
+#             I[i][j] = abs(data_fft[harmonic])/abs(data_fft[0])
+#             i += 1
+#         j += 1
+#         # if r == 40:
+#         #     freq = fft.fftfreq(len(data_r), 1. / len(data_r))
+#         #     nx = image.shape[0]
+#         #     plt.figure()
+#         #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, polar_image[:, r])
+#         #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, 1. / nx * sum(
+#         #         [data_fft[i] * np.cos(freq[i] * np.linspace(0, nx, nx) * np.pi / nx) for i in range(len(data_fft))]))
+#         #     plt.show()
+#
+#     if 'plot':
+#         plt.figure()
+#         for i in range(len(harmonics)):
+#             plt.plot(np.linspace(0, len_I, len_I)*0.396, I[i], label=harmonics[i])
+#         plt.legend()
+#         if 'savename' in kw:
+#             plt.savefig(kw['savename'])
+#         plt.show()
+#         plt.close()
+#     image.prop('fourier.harm', data=I)
+#     return I
 
