@@ -4,16 +4,27 @@ from mod_read import *
 from mod_analysis import *
 from contextlib import contextmanager
 import importlib
+import os
+import umap
 
 #%%
-table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
-im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
+# table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
+# im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
+# out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
+# names = np.loadtxt('gal_names.txt', dtype='str')
 
-names = np.loadtxt('gal_names.txt', dtype='str')
+
+table_path = '/media/mouse13/My Passport/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.cat'
+dirbase = '/media/mouse13/My Passport/corotation/manga/'
+im_path = '/media/mouse13/My Passport/corotation/manga/input/'
+out_path = '/media/mouse13/My Passport/corotation/manga/pics/'
+names = [elem.split('.')[0] for elem in os.listdir(im_path)]
+
 # print(names)
 
-images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+# images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+images = make_images(names=names[:10], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=path_table, manga=True)
+
 
 @contextmanager
 def figure(**kw):
