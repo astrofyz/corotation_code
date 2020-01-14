@@ -23,7 +23,7 @@ names = [elem.split('.')[0] for elem in os.listdir(im_path)]
 # print(names)
 
 # images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
-images = make_images(names=names[:10], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=path_table, manga=True)
+images = make_images(names=names[:2], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
 
 
 @contextmanager
@@ -49,24 +49,24 @@ def figure(**kw):
 # print(images)
 #%%
 # importlib.reload(mod_analysis)
-for image in images:
+for image in images[:2]:
     # print(image.keys())
     # print('lol')
-    try:
-        for band in ['g', 'i', 'r', 'u', 'z']:
+    # try:
+        for band in ['z']:
             find_parabola(image[band]) #, plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objid14'])}_{band}.png")
 
-        calc_slit(image['r'], 40, convolve=True)
+        calc_slit(image['z'], 40, convolve=True)
         # plot surface brigtness profiles with fitted parabola
-        # with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objid14'])+'.png') as fig:
-        #     plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
-        #     plt.gca().invert_yaxis()
-        #     for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
-        #         plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-        #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
-        #         plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
-        #         plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
-        #     plt.legend()
+        with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
+            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
+            plt.gca().invert_yaxis()
+            for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
+                plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
+                plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
+                plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
+                plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
+            plt.legend()
         # find position angle of bar
         # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objid14'])+'_slits.png')
 
@@ -86,7 +86,7 @@ for image in images:
 
         # plot "bar"
         # with figure(show=True) as fig:
-        with figure(savename=out_path+'bar_'+str(image['objid14'])+'.png') as fig:
+        with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
             plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image["r"]["eps"], 3)))
             plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
                        norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
@@ -96,22 +96,22 @@ for image in images:
             xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
             # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
             # aper.plot(lw=0.2, color='blue', label='max_resid')
-            aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
-            aper.plot(lw=0.3, color='red', label='corot_r')
-            aper = CircularAperture([xc, yc], abs(image['g']['sb.rad.min']))
-            aper.plot(lw=0.3, color='blue', label='corot_g')
-            aper = CircularAperture([xc, yc], abs(image['i']['sb.rad.min']))
-            aper.plot(lw=0.3, color='gold', label='corot_i')
-            aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
-            aper.plot(lw=0.3, color='green', label='corot_u')
+            # aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
+            # aper.plot(lw=0.3, color='red', label='corot_r')
+            # aper = CircularAperture([xc, yc], abs(image['g']['sb.rad.min']))
+            # aper.plot(lw=0.3, color='blue', label='corot_g')
+            # aper = CircularAperture([xc, yc], abs(image['i']['sb.rad.min']))
+            # aper.plot(lw=0.3, color='gold', label='corot_i')
+            # aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
+            # aper.plot(lw=0.3, color='green', label='corot_u')
             aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
             aper.plot(lw=0.3, color='purple', label='corot_z')
             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
             # aper.plot(lw=0.2, color='red', label='perpendicular')
             plt.legend()
-    except:
-        print(image['objid14'], 'none')
-        pass
+    # except:
+    #     print(image['objID'], 'none')
+    #     pass
 
 
 #%%

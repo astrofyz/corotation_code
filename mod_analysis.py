@@ -326,7 +326,7 @@ def find_parabola(image, **kw):
 
     if isinstance(image, mod_read.ImageClass):
         if all(['r.' not in key.lower() for key in image.keys()]):
-            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(lambda x: x if 'seg.center' in image.keys() else image['seg'])[1:])
 
         if all(['sb' not in key.lower() for key in image.keys()]):
             calc_sb(image, error=True)

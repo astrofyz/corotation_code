@@ -208,9 +208,10 @@ def make_images(names, bands='all', types='all',
                     for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
                         image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
                                                                        [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
-                for prop_name in ['petroRad', 'petroR50', 'petroR90']:
-                    image[band].prop(prop_name, data=(1./0.396)*all_table.loc[all_table.objid14 == int(name),
-                                                                   [prop_name + '_{}'.format(band)]].values[0][0])
+                else:
+                    for prop_name in ['petroRad', 'petroR50', 'petroR90']:  # why do I have petroR90????
+                        image[band].prop(prop_name, data=(1./0.396)*all_table.loc[all_table.objid14 == int(name),
+                                                                                  [prop_name + '_{}'.format(band)]].values[0][0])
 
                 for tp in types:
                     if tp != 'real':

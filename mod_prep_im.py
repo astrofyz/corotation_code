@@ -74,11 +74,18 @@ def calc_bkg(image, mask, **kwargs):
     else:
         size = int(np.shape(image)[0]/4)
 
-    if mask.all() != None:
-        bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
-    else:
+    # if mask.all() != None:  # переписать, проверяя сначала isinstance NoneType, then else
+    #     bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
+    # else:
+    #     sigma_clip = SigmaClip(sigma=3.)
+    #     bkg = Background2D(image, (size, size), filter_size=(3, 3), sigma_clip=sigma_clip)
+
+    NoneType = type(None)
+    if isinstance(mask, NoneType):
         sigma_clip = SigmaClip(sigma=3.)
-        bkg = Background2D(image, (size, size), filter_size=(3, 3), sigma_clip = sigma_clip)
+        bkg = Background2D(image, (size, size), filter_size=(3, 3), sigma_clip=sigma_clip)
+    else:
+        bkg = Background2D(image, (size, size), filter_size=(3, 3), mask=mask)
     return bkg
 
 
