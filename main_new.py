@@ -7,24 +7,23 @@ import importlib
 import os
 import umap
 
-#%%
-# table_path = '/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
-# im_path = '/media/mouse13/My Passport/corotation/buta_gal/image'
-# out_path = '/media/mouse13/My Passport/corotation_code/data/newnew/'
+# table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
+# im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
+# out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
 # names = np.loadtxt('gal_names.txt', dtype='str')
 
 
-table_path = '/media/mouse13/My Passport/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.cat'
-dirbase = '/media/mouse13/My Passport/corotation/manga/'
-im_path = '/media/mouse13/My Passport/corotation/manga/input/'
-out_path = '/media/mouse13/My Passport/corotation/manga/pics/'
+table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.csv'
+dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
+im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/input/'
+out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
 names = [elem.split('.')[0] for elem in os.listdir(im_path)]
 
 # print(names)
-
+#%%
 # images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
-images = make_images(names=names[:2], bands=['z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
-
+images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
+# try other bands
 
 @contextmanager
 def figure(**kw):
@@ -42,58 +41,53 @@ def figure(**kw):
     plt.close()
 
 #%%
-# images = [images]
-# #%%
-# print(len(images))
-# #%%
-# print(images)
-#%%
-# importlib.reload(mod_analysis)
-for image in images[:2]:
-    # print(image.keys())
-    # print('lol')
+for image in images:
     # try:
-        for band in ['z']:
-            find_parabola(image[band]) #, plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objid14'])}_{band}.png")
+        for band in ['z', 'g', 'r']:
+            find_parabola(image[band], plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
 
-        calc_slit(image['z'], 40, convolve=True)
+#%%
+        calc_slit(image['z'], 40, convolve=True)  # возможно, вообще не надо
+        for band in ['z', 'g', 'r']:
+            if 'eps' not in image[band].keys():
+                image[band]['eps'] = 0.
+
         # plot surface brigtness profiles with fitted parabola
         with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
             plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
             plt.gca().invert_yaxis()
-            for band, color in zip(['g', 'i', 'r', 'u', 'z'], ['blue', 'gold', 'r', 'm', 'g']):
+            for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'gold', 'm'][:3]):
                 plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
                 plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
                 plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
                 plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
             plt.legend()
-        # find position angle of bar
-        # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objid14'])+'_slits.png')
 
+        # find position angle of bar
+        # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objID14'])+'_slits.png')
         # r_min_slit_0 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
         #                                    sb_err=np.split(np.array(image['r']['slit.min.err'][:-1]), 2)[1],
         #                                    r_max=image['r']['r.max.pix'],
         #                                    sb=np.split(np.array(image['r']['slit.min'][:-1]), 2)[1])
         #
         # print(r_min_slit_0[-1])
-
         # r_min_slit_1 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
         #                              sb_err=np.split(np.array(image['r']['slit.max.err'][:-1]), 2)[1],
         #                              r_max=image['r']['r.max.pix'],
         #                              sb=np.split(np.array(image['r']['slit.max'][:-1]), 2)[1], plot=True)[-1]
         #
         # print(r_min_slit_1[-1])
-
         # plot "bar"
         # with figure(show=True) as fig:
+
         with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
-            plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image["r"]["eps"], 3)))
-            plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
+            plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image['z']['eps'], 3)))
+            plt.imshow(image['z']['real.mag'], origin='lower', cmap='Greys',
                        norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
             # idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
             # idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
             # print(image['r']['slits.rad.pix'][idx_bar])
-            xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
+            xc, yc = np.array([int(dim / 2) for dim in np.shape(image['z']['real.mag'])])
             # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
             # aper.plot(lw=0.2, color='blue', label='max_resid')
             # aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
@@ -133,7 +127,7 @@ def find_min_new(image):
     return rads, sbs
 
 #%%
-print(images[0]['objid14'])
+print(images[0]['objID'])
 #%%
 rads, sbs = find_min_new(images[0]['r'])
 

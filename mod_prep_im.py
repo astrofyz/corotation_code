@@ -30,7 +30,7 @@ def main_obj(cat, mask, **kwargs):
     wcs - world coordinate system from header of real file"""
 
     # w = wcs.WCS(real[0].header)
-    # ra_real, dec_real = table.loc[all_table.objid14 == int(name), ['ra', 'dec']].values[0]
+    # ra_real, dec_real = table.loc[all_table.objID14 == int(name), ['ra', 'dec']].values[0]
     if 'xy' in kwargs:
         x_real, y_real = kwargs.get('xy')
     elif 'radec' in kwargs:

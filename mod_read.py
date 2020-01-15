@@ -31,7 +31,7 @@ class ImageClass(dict):
     """Class to store images and additional data"""
     def __init__(self): #можно инициировать какими-нибудь разумными значениями что-нибудь, если что-то отсутствует. например, радиус.
         self['name'] = 'name'
-        self['objid'] = 'objid dr7'
+        self['objID'] = 'objID dr7'
         self['ra'] = 0.
         self['dec'] = 0.
         self = dict()  # а как сделать нормально?  наверное, надо делать наследование какое-то.
@@ -197,20 +197,20 @@ def make_images(names, bands='all', types='all',
     if 'SE' in kw:
         for name in names:
             image = ImageClass()
-            for prop_name in ['name', 'objid14', 'ra', 'dec']:
-                image.prop(prop_name, data=all_table.loc[all_table.objid14 == int(name), [prop_name]].values[0][0])
+            for prop_name in ['name', 'objID', 'ra', 'dec']:
+                image.prop(prop_name, data=all_table.loc[all_table.objID == int(name), [prop_name]].values[0][0])
             for band in bands:
                 image[band] = ImageClass()
 
-                for prop_name in ['name', 'objid14', 'ra', 'dec']:
+                for prop_name in ['name', 'objID', 'ra', 'dec']:
                     image[band].prop(prop_name, data=image[prop_name])
                 if 'calibration' in kw:
                     for prop_name in ['gain', 'kk', 'airmass', 'seeing', 'aa', 'petroRad', 'petroR50']:
-                        image[band].prop(prop_name, data=all_table.loc[all_table.objid14 == int(name),
+                        image[band].prop(prop_name, data=all_table.loc[all_table.objID == int(name),
                                                                        [prop_name+'_{}'.format(band)]].values[0][0])  #[0][0] — only for list of names (???)
                 else:
                     for prop_name in ['petroRad', 'petroR50', 'petroR90']:  # why do I have petroR90????
-                        image[band].prop(prop_name, data=(1./0.396)*all_table.loc[all_table.objid14 == int(name),
+                        image[band].prop(prop_name, data=(1./0.396)*all_table.loc[all_table.objID == int(name),
                                                                                   [prop_name + '_{}'.format(band)]].values[0][0])
 
                 for tp in types:
@@ -252,7 +252,7 @@ def make_images(names, bands='all', types='all',
                         else:
                             image[band].prop(property_name=tp, data=fits.open(fname))
                         fits.open(fname).close()
-                for prop_name in ['petroRad', 'petroR50', 'petroR90']:
+                for prop_name in ['gain', 'airmass', 'petroRad', 'petroR50', 'petroR90']:
                     try:
                         image[band].prop(prop_name, data=all_table.loc[all_table.objID == int(name),
                                                                        [prop_name + '_{}'.format(band)]].values[0][0])
@@ -261,9 +261,12 @@ def make_images(names, bands='all', types='all',
                         image[band].prop(prop_name, data=0.)
                         if 'warning' in kw:
                             print(f'WARNING: no column "{col_err}"; set with 0')  # лучше с None
-                image[band].prop('bg', data=calc_bkg(image[band]['real'], None, mode='nearest'))
+                seg_func = lambda x: x['seg'] if 'seg' in x.keys() else None
+                image[band].prop('bg', data=calc_bkg(image[band]['real'], seg_func(image[band]), mode='nearest'))
                 total_error = calc_total_error(image[band]['real'], image[band]['bg'].background_rms, 4.64)
                 image[band].prop('total_error', data=total_error)
+                image[band].prop('real.bg', data=image[band]['real'] - image[band]['bg'].background)
+                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=22.5))
             images.append(image)
 
 

@@ -158,11 +158,12 @@ def calc_sb(image, **kw):
         f_max - maximal semimajor axis / sma_catalog
     :returns array of radii and corresponding array of surface brightnesses in rings; (in pixels and mag) + errors if bg_rms  in **kw"""
 
-    xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real'])])
     theta = image['cat'][1].data.T[0]['THETA_IMAGE']  #degrees???
 
     if all(['r.' not in key.lower() for key in image.keys()]):
-        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+        seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
     if 'step' in kw:
         step = kw['step']
@@ -175,6 +176,7 @@ def calc_sb(image, **kw):
             eps = image['eps']
         except:
             eps = 0.
+            image['eps'] = 0.
     else:
         eps = image['eps']
 
@@ -233,7 +235,8 @@ def find_fancy_parabola(image, **kw):
 
     if isinstance(image, mod_read.ImageClass):
         if all(['r.' not in key.lower() for key in image.keys()]):
-            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg.center'])[1:])
+            seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
         if all(['sb' not in key.lower() for key in image.keys()]):
             calc_sb(image, error=True)
@@ -326,7 +329,8 @@ def find_parabola(image, **kw):
 
     if isinstance(image, mod_read.ImageClass):
         if all(['r.' not in key.lower() for key in image.keys()]):
-            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(lambda x: x if 'seg.center' in image.keys() else image['seg'])[1:])
+            seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
         if all(['sb' not in key.lower() for key in image.keys()]):
             calc_sb(image, error=True)
@@ -377,7 +381,7 @@ def find_parabola(image, **kw):
         ax1.axvline(rad_pix[top])
         ax1.set_xlabel('r (arcsec)')
         ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-        ax1.set_title(f"{image['objid14']}\n{kw['band']}")
+        ax1.set_title(f"{image['objID']}\n{kw['band']}")
         ax1.legend()
         ax1.set_ylim(max(sb), min(sb))
         ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
