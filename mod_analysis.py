@@ -372,6 +372,11 @@ def find_parabola(image, **kw):
     fit_sb = sb[low:top+1]
     p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
 
+    def func(x, a, b, c):
+        return a * np.log10(b * x) + c
+
+    popt, pcorr = opt.curve_fit(func, rad_pix, sb)
+
     if 'plot' in kw:
         f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
         ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
@@ -379,13 +384,14 @@ def find_parabola(image, **kw):
         ax1.plot(fit_r, p(fit_r), color='k', label='approx')
         ax1.axvline(rad_pix[low])
         ax1.axvline(rad_pix[top])
-        ax1.set_xlabel('r (arcsec)')
+        ax1.set_xlabel('r (pix)')
         ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
         ax1.set_title(f"{image['objID']}\n{kw['band']}")
         ax1.legend()
         ax1.set_ylim(max(sb), min(sb))
-        ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
-        ax2.scatter(rad_pix, curvature, s=14, label='curvature')
+        # ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
+        # ax2.scatter(rad_pix, curvature, s=14, label='curvature')
+        ax2.scatter(rad_pix, sb-func(rad_pix, *popt), marker='.')
         ax2.axhline(0.)
         ax2.legend()
         plt.grid()
@@ -470,7 +476,7 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
         apertures_par = RectangularAperture(r_par, width, step, pa_space[i])
         apertures_per = RectangularAperture(r_per, width, step, pa_space[i] + np.pi / 2.)
 
-        if 'mag' in kw:
+        if 'mag' in kw:  # чо???
             table_par = aperture_photometry(image_work, apertures_par, error=image['total_error'])
             table_per = aperture_photometry(image_work, apertures_per, error=image['total_error'])
         else:

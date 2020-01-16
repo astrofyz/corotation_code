@@ -6,6 +6,8 @@ from contextlib import contextmanager
 import importlib
 import os
 import umap
+from sklearn.cluster import KMeans
+
 
 table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
 im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
@@ -21,13 +23,13 @@ names = np.loadtxt('gal_names.txt', dtype='str')
 
 # print(names)
 #%%
-images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+images = make_images(names=names[28:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 # images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
 # try other bands
-
+#%%
 @contextmanager
-def figure(**kw):
-    fig = plt.figure()
+def figure(num=1, **kw):
+    fig = plt.figure(num=num)
     yield fig
     if 'title' in kw:
         plt.title(kw.get('title'))
@@ -40,70 +42,46 @@ def figure(**kw):
     plt.show()
     plt.close()
 
-#%%
-idx_work = np.where(images[1]['r']['seg'] == 1)
-with figure() as fig:
-    plt.imshow(images[1]['r']['seg'])
 
 #%%
-# print(idx_work[0])
-# print(idx_work[1])
-# print(np.array(idx_work).ravel())
-# print(len(images[0]['r']['real.mag'][idx_work].ravel()))
-# print(np.shape(r))
-from sklearn.cluster import KMeans
-
 for image in images[:]:
-    with figure() as fig:
-        plt.imshow(image['r']['seg.center'], origin='lower')
+    # with figure(1) as fig:
+    #     plt.imshow(image['r']['seg.center'], origin='lower')
 
-    idx_work = np.where(image['r']['seg.center'] == 1)
-    mag = image['r']['real.mag'][idx_work].ravel()
-    r = np.sqrt((idx_work[0]-256)**2 + (idx_work[1]-256)**2)
-    X = np.vstack((mag, r)).T
+    # idx_work = np.where(image['r']['seg.center'] == 1)
+    # mag = image['r']['real.mag'][idx_work].ravel()
+    # r = np.sqrt((idx_work[0]-256)**2 + (idx_work[1]-256)**2)
+    # X = np.vstack((mag, r)).T
 
-    kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
-    with figure() as fig:
-        plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
-                   norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
-        xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
-        for cluster in kmeans.cluster_centers_:
-            aper = CircularAperture([xc, yc], cluster[1])
-            aper.plot(lw=0.2, color='gold')
+    # kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
+    # with figure(2) as fig:
+    #     plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
+    #                norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
+    #     xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
+    #     for cluster in kmeans.cluster_centers_:
+    #         aper = CircularAperture([xc, yc], cluster[1])
+    #         aper.plot(lw=0.3, color='gold')
 
-#%%
-print(kmeans.cluster_centers_)
-
-#%%
-with figure() as fig:
-    plt.scatter(r, mag, c=kmeans.labels_)
-
-#%%
-with figure() as fig:
-    plt.scatter(idx_work[0], idx_work[1], c=kmeans.labels_)
-
-#%%
-for image in images:
-    # try:
-        for band in ['r']:
+    try:
+        for band in ['r', 'g', 'z', 'u', 'i']:
             find_parabola(image[band], plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
 
-#%%
-        calc_slit(image['z'], 40, convolve=True)  # возможно, вообще не надо
-        for band in ['z', 'g', 'r']:
+        # calc_slit(image['z'], 40, convolve=True)  # возможно, вообще не надо
+        for band in ['z', 'g', 'r', 'u', 'i']:
             if 'eps' not in image[band].keys():
                 image[band]['eps'] = 0.
 
         # plot surface brigtness profiles with fitted parabola
-        with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
-            plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
-            plt.gca().invert_yaxis()
-            for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'gold', 'm'][:3]):
-                plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-                plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
-                plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
-                plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
-            plt.legend()
+        # with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
+        #     plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
+        #     plt.gca().invert_yaxis()
+        #     for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'gold', 'm'][:3]):
+        #         plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
+        #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
+        #         plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
+        #         plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
+        #         # plt.vlines(kmeans.cluster_centers_.T[1]*0.396, ymin=plt.gca().get_ylim()[0], ymax=plt.gca().get_ylim()[1], label='kmeans')
+        #     plt.legend()
 
         # find position angle of bar
         # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objID14'])+'_slits.png')
@@ -122,14 +100,14 @@ for image in images:
         # plot "bar"
         # with figure(show=True) as fig:
 
-        with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
-            plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image['z']['eps'], 3)))
-            plt.imshow(image['z']['real.mag'], origin='lower', cmap='Greys',
-                       norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
+        # with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
+        #     plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image['z']['eps'], 3)))
+        #     plt.imshow(image['z']['real.mag'], origin='lower', cmap='Greys',
+        #                norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
             # idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
             # idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
             # print(image['r']['slits.rad.pix'][idx_bar])
-            xc, yc = np.array([int(dim / 2) for dim in np.shape(image['z']['real.mag'])])
+            # xc, yc = np.array([int(dim / 2) for dim in np.shape(image['z']['real.mag'])])
             # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
             # aper.plot(lw=0.2, color='blue', label='max_resid')
             # aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
@@ -140,18 +118,42 @@ for image in images:
             # aper.plot(lw=0.3, color='gold', label='corot_i')
             # aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
             # aper.plot(lw=0.3, color='green', label='corot_u')
-            aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
-            aper.plot(lw=0.3, color='purple', label='corot_z')
+            # aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
+            # aper.plot(lw=0.3, color='purple', label='corot_z')
             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
             # aper.plot(lw=0.2, color='red', label='perpendicular')
-            plt.legend()
-    # except:
-    #     print(image['objID'], 'none')
-    #     pass
-
-
+            # plt.legend()
+    except:
+        print(image['objID'], 'none')
+        pass
 #%%
-importlib.reload(mod_analysis)
+rad = images[0]['r']['sb.rad.pix']
+sb = images[0]['r']['sb']
+
+fit1d = np.polyfit(rad, sb, 1)
+
+with figure(1) as fig:
+    plt.scatter(rad, sb, marker='.')
+    plt.plot(rad, np.poly1d(fit1d)(rad))
+
+with figure(2) as fig:
+    plt.scatter(rad, sb-np.poly1d(fit1d)(rad), marker='.')
+
+from scipy.optimize import curve_fit
+
+def func(x, a, b, c):
+    return a * np.log10(b * x) + c
+
+popt, pcorr = curve_fit(func, rad, sb)
+
+with figure(3) as fig:
+    plt.scatter(rad, sb, marker='.')
+    plt.plot(rad, func(rad, *popt))
+
+with figure(4) as fig:
+    plt.scatter(rad, sb-func(rad, *popt), marker='.')
+#%%
+# importlib.reload(mod_analysis)
 def find_min_new(image):
     n = 100
     rspace = np.linspace(0, n, image['r.max.pix'])
