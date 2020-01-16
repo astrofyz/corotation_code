@@ -7,22 +7,22 @@ import importlib
 import os
 import umap
 
-# table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
-# im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
-# out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
-# names = np.loadtxt('gal_names.txt', dtype='str')
+table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
+im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
+out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
+names = np.loadtxt('gal_names.txt', dtype='str')
 
 
-table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.csv'
-dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
-im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/input/'
-out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
-names = [elem.split('.')[0] for elem in os.listdir(im_path)]
+# table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.csv'
+# dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
+# im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/input/'
+# out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
+# names = [elem.split('.')[0] for elem in os.listdir(im_path)]
 
 # print(names)
 #%%
-# images = make_images(names=names[26:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
-images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
+images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+# images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
 # try other bands
 
 @contextmanager
@@ -41,9 +41,51 @@ def figure(**kw):
     plt.close()
 
 #%%
+idx_work = np.where(images[1]['r']['seg'] == 1)
+with figure() as fig:
+    plt.imshow(images[1]['r']['seg'])
+
+#%%
+# print(idx_work[0])
+# print(idx_work[1])
+# print(np.array(idx_work).ravel())
+# print(len(images[0]['r']['real.mag'][idx_work].ravel()))
+# print(np.shape(r))
+from sklearn.cluster import KMeans
+
+for image in images[:]:
+    with figure() as fig:
+        plt.imshow(image['r']['seg.center'], origin='lower')
+
+    idx_work = np.where(image['r']['seg.center'] == 1)
+    mag = image['r']['real.mag'][idx_work].ravel()
+    r = np.sqrt((idx_work[0]-256)**2 + (idx_work[1]-256)**2)
+    X = np.vstack((mag, r)).T
+
+    kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
+    with figure() as fig:
+        plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
+                   norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
+        xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
+        for cluster in kmeans.cluster_centers_:
+            aper = CircularAperture([xc, yc], cluster[1])
+            aper.plot(lw=0.2, color='gold')
+
+#%%
+print(kmeans.cluster_centers_)
+
+#%%
+with figure() as fig:
+    plt.scatter(r, mag, c=kmeans.labels_)
+
+#%%
+with figure() as fig:
+    plt.scatter(idx_work[0], idx_work[1], c=kmeans.labels_)
+
+#%%
 for image in images:
     # try:
-        for band in ['z', 'g', 'r']:
+        for band in ['r']:
             find_parabola(image[band], plot=True, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
 
 #%%

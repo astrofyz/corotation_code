@@ -175,7 +175,7 @@ class ImageClass(dict):
 
 
 def make_images(names, bands='all', types='all',
-            path_table='/media/mouse13/My Passport/corotation/buta_gal/all_table_buta_rad_astrofyz.csv',
+            path_table='/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv',
             path='/home/mouse13/corotation/clear_outer', **kw):
     """names : string of 19 digits; if list - list of dictionaries returned, else - dictionary class;
        path_table : path to table with all information for images;
