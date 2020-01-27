@@ -255,7 +255,7 @@ def find_fancy_parabola(image, **kw):
     # idxs = np.where(rad_pix < r_max)  # это очень скользко, переделай
 
     conv_kernel = Gaussian1DKernel(stddev=2.*np.sqrt(np.mean(sb_err)))
-    sb_conv = convolve(sb, conv_kernel)
+    sb_conv = convolve(sb, conv_kernel, boundary='extend')
     curvature = find_curvature(rad_pix, sb_conv)
 
     idxs_valid = np.where(abs(curvature) < 0.1)
