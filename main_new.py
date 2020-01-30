@@ -11,6 +11,7 @@ from scipy.optimize import curve_fit
 import scipy.optimize as opt
 from scipy.interpolate import UnivariateSpline, splrep, splev, sproot
 from time import time
+from matplotlib.gridspec import GridSpec
 #%%
 table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
 im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
@@ -147,7 +148,7 @@ def rescale(data, a=-1, b=1):
     return (b-a)*(data-min_x)/(max_x-min_x) + a
 
 #%%
-images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+# images = make_images(names=names[6:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 
 #%%
 start = time()
@@ -155,13 +156,18 @@ dn = 6
 n = len(names[:])
 print(n)
 chunk = 0
-for chunk in range(0, n, dn):
+for chunk in range(6, n, dn):
     dc = min(chunk+dn, n)
     images = make_images(names=names[chunk:dc], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
     for image in images[:]:
         try:
-            fig, ax = plt.subplots(nrows=2, sharex=True)
-            for band, color in zip(['g', 'r', 'z', 'i', 'u'][:2], ['blue', 'r', 'g', 'gold', 'm'][:2]):
+            for band, color in zip(['g', 'r', 'z', 'i', 'u'][:], ['blue', 'r', 'g', 'darkorange', 'm'][:]):
+                xc, yc = np.array([int(dim / 2) for dim in np.shape(image[band]['real.mag'])])
+                fig = plt.figure(constrained_layout=True)
+                gs = GridSpec(nrows=2, ncols=3, figure=fig)
+                ax1 = fig.add_subplot(gs[:, :2])
+                ax2 = fig.add_subplot(gs[0, 2])
+                ax3 = fig.add_subplot(gs[1, 2])
                 calc_sb(image[band], error=True)
                 rad = image[band]['sb.rad.pix']
                 radius = np.linspace(min(rad), max(rad), 500)
@@ -169,28 +175,23 @@ for chunk in range(0, n, dn):
                 sb_err = image[band]['sb.err']
                 conv_kernel = Gaussian1DKernel(stddev=3. * np.sqrt(np.mean(sb_err)))
                 sb_conv = convolve(sb, conv_kernel, boundary='extend')
-                fit1d = np.polyfit(rad, sb_conv, 1)
-                diff_1d = sb_conv-np.poly1d(fit1d)(rad)
-                popt, pcorr = curve_fit(func, rad, sb_conv)
-                diff_exp = sb_conv-func(rad, *popt)
                 curvature = find_curvature(rad, sb)
                 curvature_conv = find_curvature(rad, sb_conv)
-                # rescale_product = lambda x: interp1d(rad, rescale(diff_1d))(x) \
-                #                             * interp1d(rad, rescale(diff_exp))(x) \
-                #                             * interp1d(rad, rescale(-1. * curvature_conv))(x)  #да, можно было бы 3 аргумента передавать
-                ax[0].plot(rad, sb, color=color, lw=1.)
-                ax[0].plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
-                ax[1].plot(rad, curvature_conv, color=color, lw=1., alpha=0.6)
-                ax[1].axhline(0., color='k', lw=0.5)
+                ax1.imshow(image[band]['real.mag'], origin='lower', cmap='Greys',
+                           norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
+                ax2.plot(rad, sb, color=color, lw=1.)
+                ax2.plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
+                ax3.plot(rad, curvature_conv, color=color, lw=1., alpha=0.6)
+                ax3.axhline(0., color='k', lw=0.5)
                 tck = splrep(rad, curvature_conv)
                 ynew = splev(radius, tck)
-                ax[1].plot(radius, ynew, color=color, lw=1.)
+                ax3.plot(radius, ynew, color=color, lw=1.)
                 roots = sproot(tck, mest=6)
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
-                    ax[0].axvline(roots[i], color=color, lw=0.3, alpha=0.1)
-                    ax[0].axvline(roots[i+1], color=color, lw=0.3, alpha=0.1)
+                    ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.1)
+                    ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.1)
                     min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
                                                bounds=[roots[i], roots[i + 1]]).x
                     f_min = splev(min1, tck)
@@ -200,19 +201,22 @@ for chunk in range(0, n, dn):
                 for interval in intervals:
                     idxs_rad = np.where((rad < interval[1]) & (rad > interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
-                    ax[0].plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
+                    ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
                     try:
-                        ax[0].axvline(
-                            opt.minimize_scalar(-p, method='Bounded', bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x,
-                            color=color, alpha=0.7, label=np.round(p[2], 3))
+                        rad_gap = opt.minimize_scalar(-p, method='Bounded',
+                                                      bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
+                        ax2.axvline(rad_gap, color=color, alpha=0.7, label=np.round(p[2], 3))
+                        aper = CircularAperture([xc, yc], rad_gap)
+                        aper.plot(axes=ax1, lw=0.5, color=color)
                     except:
                         print(f'no minimum for this interval {interval}')
-            ax[0].invert_yaxis()
-            fig.legend()
-            ax[0].set_title('{}'.format(image['name']))
-            # fig.show()
-            fig.savefig(out_path+f"sb_check/curv_{str(image['objID'])}.png")
-            plt.close()
+                ax2.invert_yaxis()
+                fig.legend()
+                plt.suptitle('{}\nband: {}'.format(image['name'], band))
+                plt.tight_layout()
+                # fig.show()
+                fig.savefig(out_path+f"sb_check/all_{str(image['objID'])}_{band}.png")
+                plt.close()
             print(image['name'])
         except:
             print(image['objID'], 'none')
