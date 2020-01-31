@@ -228,10 +228,13 @@ def make_images(names, bands='all', types='all',
             images.append(image)
 
     if 'manga' in kw:
+        # print(all_table.keys())
         for name in names:
+            # print(name)
             image = ImageClass()
             for prop_name in ['objID', 'ra', 'dec']:  # check column names
-                image.prop(prop_name, data=all_table.loc[all_table.objID == int(name), [prop_name]].values[0][0])
+                image.prop(prop_name, data=all_table.loc[all_table.objID == name][prop_name])
+                image['objID'] = name
             img_file = fits.open(path+f'input/{name}.fits')
             if bands == None:
                 bands = img_file[0].header['BANDS']
@@ -242,6 +245,7 @@ def make_images(names, bands='all', types='all',
                 if (types == None) or ('real' in types):
                     id_band = img_file[0].header['BANDS'].find(band)
                     image[band].prop(property_name='real', data=img_file[0].data[id_band])
+                    image[band].prop(property_name='real.header', data=img_file[0].header)
                 if types != None:
                     for tp in list(set(types) - set(['real'])):
                         if tp != 'real':
@@ -301,7 +305,4 @@ def make_images(names, bands='all', types='all',
                 image[band].prop('zp', data=-(image[band]['aa']+image[band]['kk']*image[band]['airmass']) + 2.5*np.log10(Apix))
                 image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp']))
 
-    if len(images) == 1:
-        return images[0]
-    else:
-        return images
+    return images

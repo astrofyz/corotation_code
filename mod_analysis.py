@@ -169,7 +169,7 @@ def calc_sb(image, **kw):
     if 'step' in kw:
         step = kw['step']
     else:
-        step = image['FD']/2.
+        step = image['FD']*0.8
 
     if 'eps' not in image:
         try:
