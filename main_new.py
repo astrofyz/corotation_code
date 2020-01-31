@@ -12,7 +12,8 @@ import scipy.optimize as opt
 from scipy.interpolate import UnivariateSpline, splrep, splev, sproot
 from time import time
 from matplotlib.gridspec import GridSpec
-#%%
+from scipy.signal import argrelextrema
+
 table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
 im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
 out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
@@ -26,11 +27,10 @@ names = np.loadtxt('gal_names.txt', dtype='str')
 # names = [elem.split('.')[0] for elem in os.listdir(im_path)]
 
 # print(names)
-#%%
 # images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 # images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
 # try other bands
-#%%
+
 @contextmanager
 def figure(num=1, **kw):
     fig = plt.figure(num=num)
@@ -47,31 +47,7 @@ def figure(num=1, **kw):
     plt.close()
 
 
-#%%
 # for image in images[:]:
-#     # with figure(1) as fig:
-#     #     plt.imshow(image['r']['seg.center'], origin='lower')
-#     #
-#     # idx_work = np.where(image['r']['seg.center'] == 1)
-#     # mag = image['r']['real.mag'][idx_work].ravel()
-#     # r = np.sqrt((idx_work[0]-256)**2 + (idx_work[1]-256)**2)
-#     # X = np.vstack((mag, r)).T
-#     #
-#     # # Y = umap.UMAP().fit_transform(X)
-#     #
-#     # with figure(2) as fig:
-#     #     plt.scatter(r, mag, marker='.')
-#     #     # plt.scatter(X[0], X[1], marker='.')
-#
-#     # kmeans = KMeans(n_clusters=3, random_state=0).fit(X)
-#     # with figure(2) as fig:
-#     #     plt.imshow(image['r']['real.mag'], origin='lower', cmap='Greys',
-#     #                norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
-#     #     xc, yc = np.array([int(dim / 2) for dim in np.shape(image['r']['real.mag'])])
-#     #     for cluster in kmeans.cluster_centers_:
-#     #         aper = CircularAperture([xc, yc], cluster[1])
-#     #         aper.plot(lw=0.3, color='gold')
-#
 #     try:
 #         for band in ['r', 'g', 'z', 'u', 'i']: #почему ошибки с plot false, что там происходит?
 #             find_parabola(image[band], plot=False, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
@@ -137,18 +113,12 @@ def figure(num=1, **kw):
 #         print(image['objID'], 'none')
 #         pass
 
-#%%
-def func(x, a, b, c):
-    return a * np.log10(b * x) + c
+# def rescale(data, a=-1, b=1):
+#     min_x = min(data)
+#     max_x = max(data)
+#     return (b-a)*(data-min_x)/(max_x-min_x) + a
 
-
-def rescale(data, a=-1, b=1):
-    min_x = min(data)
-    max_x = max(data)
-    return (b-a)*(data-min_x)/(max_x-min_x) + a
-
-#%%
-# images = make_images(names=names[6:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
+# images = make_images(names=names[:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 
 #%%
 start = time()
@@ -156,24 +126,27 @@ dn = 6
 n = len(names[:])
 print(n)
 chunk = 0
-for chunk in range(6, n, dn):
+for chunk in range(0, n, dn):
     dc = min(chunk+dn, n)
-    images = make_images(names=names[chunk:dc], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
-    for image in images[:]:
-        try:
-            for band, color in zip(['g', 'r', 'z', 'i', 'u'][:], ['blue', 'r', 'g', 'darkorange', 'm'][:]):
+    # for image in images[:]:
+    # try:
+    for band, color in zip(['g', 'r', 'z', 'i', 'u'][:], ['blue', 'r', 'g', 'darkorange', 'm'][:]):
+        images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path, SE=True,
+                             calibration=True, correction=True)
+        for image in images:
+            try:
                 xc, yc = np.array([int(dim / 2) for dim in np.shape(image[band]['real.mag'])])
-                fig = plt.figure(constrained_layout=True)
-                gs = GridSpec(nrows=2, ncols=3, figure=fig)
+                fig = plt.figure(figsize=(16, 8))
+                gs = GridSpec(nrows=2, ncols=4, figure=fig)
                 ax1 = fig.add_subplot(gs[:, :2])
-                ax2 = fig.add_subplot(gs[0, 2])
-                ax3 = fig.add_subplot(gs[1, 2])
+                ax2 = fig.add_subplot(gs[0, 2:])
+                ax3 = fig.add_subplot(gs[1, 2:])
                 calc_sb(image[band], error=True)
                 rad = image[band]['sb.rad.pix']
                 radius = np.linspace(min(rad), max(rad), 500)
                 sb = image[band]['sb']
                 sb_err = image[band]['sb.err']
-                conv_kernel = Gaussian1DKernel(stddev=3. * np.sqrt(np.mean(sb_err)))
+                conv_kernel = Gaussian1DKernel(stddev=4. * np.sqrt(np.mean(sb_err)))
                 sb_conv = convolve(sb, conv_kernel, boundary='extend')
                 curvature = find_curvature(rad, sb)
                 curvature_conv = find_curvature(rad, sb_conv)
@@ -181,87 +154,69 @@ for chunk in range(6, n, dn):
                            norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
                 ax2.plot(rad, sb, color=color, lw=1.)
                 ax2.plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
+                ax2.fill_between(image[band]['sb.rad.pix'], image[band]['sb'] - image[band]['sb.err']/2.,
+                                 image[band]['sb'] + image[band]['sb.err']/2., color=color, alpha=0.1)
                 ax3.plot(rad, curvature_conv, color=color, lw=1., alpha=0.6)
                 ax3.axhline(0., color='k', lw=0.5)
                 tck = splrep(rad, curvature_conv)
                 ynew = splev(radius, tck)
                 ax3.plot(radius, ynew, color=color, lw=1.)
-                roots = sproot(tck, mest=6)
+                roots = sproot(tck, mest=10)
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
                     ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.1)
                     ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.1)
-                    min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
-                                               bounds=[roots[i], roots[i + 1]]).x
-                    f_min = splev(min1, tck)
-                    intervals.append([opt.minimize_scalar(lambda y: abs(splev(y, tck) - 0.5 * f_min), method='Bounded',
-                                                          bounds=[min([roots[k], min1]), max(roots[k], min1)]).x for k
-                                      in [i, i + 1]])
+                    intervals.append([roots[i], roots[i+1]])
+                    # can take 90% of interval, if want to reduce something; still can't understand what's wrong lol
+                    # min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
+                    #                            bounds=[roots[i], roots[i + 1]]).x
+                    # f_min = splev(min1, tck)
+                    # intervals.append([opt.minimize_scalar(lambda y: abs(splev(y, tck) - 0. * f_min), method='Bounded',
+                    #                                       bounds=[min([roots[k], min1]), max(roots[k], min1)]).x for k
+                    #                   in [i, i + 1]])
                 for interval in intervals:
                     idxs_rad = np.where((rad < interval[1]) & (rad > interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
                     ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
-                    try:
-                        rad_gap = opt.minimize_scalar(-p, method='Bounded',
-                                                      bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
-                        ax2.axvline(rad_gap, color=color, alpha=0.7, label=np.round(p[2], 3))
-                        aper = CircularAperture([xc, yc], rad_gap)
-                        aper.plot(axes=ax1, lw=0.5, color=color)
-                    except:
-                        print(f'no minimum for this interval {interval}')
+                    if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.mean(image[band]['sb.err'][idxs_rad]):
+                        try:
+                            rad_gap = opt.minimize_scalar(-p, method='Bounded',
+                                                          bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
+                            ax2.axvline(rad_gap, color=color, alpha=0.7) #, label=np.round(p[2], 3))
+                            aper = CircularAperture([xc, yc], rad_gap)
+                            aper.plot(axes=ax1, lw=0.5, color=color)
+                        except:
+                            print(f'no minimum for this interval {interval}')
+                    else:
+                        print('surface brightness change is comparable to error')
+                try:
+                    I = fourier_harmonics(images[0]['g'], harmonics=[2, ], sig=2, plot=False)
+                    rad_f = np.linspace(rad[0], rad[-1], len(I[0]))
+                    ax3.plot(rad_f, I[0], label='2', color='k')
+                    min_f2 = argrelextrema(I[0], np.less)[0]
+                    for rf2 in min_f2[:min([2, len(min_f2)])]:
+                        CircularAperture([xc, yc], rad_f[rf2]).plot(axes=ax1, lw=0.5, color='k', alpha=0.5)
+                except:
+                    print('no fourier')
                 ax2.invert_yaxis()
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['name'], band))
                 plt.tight_layout()
-                # fig.show()
-                fig.savefig(out_path+f"sb_check/all_{str(image['objID'])}_{band}.png")
+                fig.show()
+                fig.savefig(out_path+f"sb_check/{band}/all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
-            print(image['name'])
-        except:
-            print(image['objID'], 'none')
-            pass
+            # print(image['name'])
+            except:
+                print(image['objID'], band, 'none')
+                pass
 print(time()-start)
+
 #%%
-# print(splev(0.5*(roots[0] + roots[1]), tck))
-odd_flag = int(splev(0.5*(roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
-# print(odd_flag)
-min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded', bounds=[roots[0], roots[1]]).x
-f_min = splev(min1, tck)
-# print(min1, roots[0], roots[1])
-half_roots = [opt.minimize_scalar(lambda y: abs(splev(y, tck)-0.5*f_min), method='Bounded',
-                                  bounds=[min([roots[i], min1]), max(roots[i], min1)]).x for i in range(2)]
-# print(opt.minimize_scalar(lambda y: float(splev(y, tck))+0.5*0.0112, method='Bounded',
-#                                  bounds=[min([roots[0], min1]), max(roots[0], min1)]).x)
-# print(half_roots)
-# print(type(splev(3., tck)))
-
-intervals = []
-for i in range(len(roots)-1)[odd_flag:][::2]:
-    min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded', bounds=[roots[i], roots[i+1]]).x
-    f_min = splev(min1, tck)
-    intervals.append([opt.minimize_scalar(lambda y: abs(splev(y, tck) - 0.5 * f_min), method='Bounded',
-                                      bounds=[min([roots[k], min1]), max(roots[k], min1)]).x for k in [i, i+1]])
-
-# print(intervals)
-
-with figure(1) as fig:
-    for interval in intervals:
-        # print(interval)
-        idxs_rad = np.where((rad < interval[1])&(rad>interval[0]))
-        p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2, full=True)[0])
-        print(p)
-        print(p[0], p[2])
-        print(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2, full=True))
-        plt.plot(rad, sb, alpha=0.3)
-        plt.plot(rad[idxs_rad], p(rad[idxs_rad]))
-        try:
-            plt.axvline(opt.minimize_scalar(-p, method='Bounded', bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x)
-            # print(opt.minimize_scalar(-p, method='Bounded', bounds=interval).x)
-        except:
-            print(f'no minimum for this interval {interval}')
-
-
+# print(chunk, dc)
+# importlib.reload(mod_analysis)
+# I = fourier_harmonics(images[0]['g'], harmonics=[2, 4], sig=2)
+# print(type(I), np.shape(I))
 #%%
 # tck = splrep(rad, curvature_conv)
 # ynew = splev(radius, tck)
@@ -292,43 +247,8 @@ with figure(1) as fig:
 #     plt.plot(rad, np.zeros_like(rad), 'k')
 
 
-#%%
-# importlib.reload(mod_analysis)
-# def find_min_new(image):
-#     n = 100
-#     rspace = np.linspace(0, n, image['r.max.pix'])
-#     min_step = image['FD']/2.
-#
-#     print(image['r.max.pix'])
-#
-#     rads, sbs = [[], []]
-#     for k in range(1, int(image['r.max.pix']*2/(3.*image['FD']))):
-#         print(k*min_step)
-#         r, sb, err = calc_sb(image, step=k*min_step, error=True)
-#         rads.append(r)
-#         sbs.append(sb)
 
-    # return rads, sbs
 
-#%%
-# print(images[0]['objID'])
-# #%%
-# rads, sbs = find_min_new(images[0]['r'])
-#
-# #%%
-# with figure() as fig:
-#     for i in range(len(rads)):
-#         plt.plot(rads[i], sbs[i], color='navy', alpha=0.3)
-#     plt.gca().invert_yaxis()
-#
-# #%%
-# for i in range(len(rads))[::-1]:
-#     with figure(savename=out_path+'gif/sb_{0:04d}.png'.format(i)) as fig:
-#         for j in range(i, len(rads))[::-1]:
-#             plt.plot(rads[j], sbs[j], color='navy', alpha=0.3)
-#         # plt.gca().invert_yaxis()
-#         plt.xlim(0, 120)
-#         plt.ylim(26, 19)
 #%%
 # importlib.reload(mod_read)
 # print(images[0]['r']['eps'])

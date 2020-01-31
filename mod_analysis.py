@@ -23,6 +23,7 @@ import os
 import mod_read
 from contextlib import contextmanager
 from mod_prep_im import *
+import math
 
 
 def find_outer(image, **kwargs):
@@ -168,7 +169,7 @@ def calc_sb(image, **kw):
     if 'step' in kw:
         step = kw['step']
     else:
-        step = image['FD']
+        step = image['FD']/2.
 
     if 'eps' not in image:
         try:
@@ -226,100 +227,6 @@ def find_curvature(r, fc, **kwargs):
     sbd2 = np.gradient(sbd1)
     curvature = (rd1 * sbd2 - sbd1 * rd2) / (rd1 ** 2 + sbd2 ** 2) ** (3. / 2.)
     return curvature
-
-
-def find_fancy_parabola(image, **kw):
-    """image : instance of ImageClass or False
-    kw : rad_pix, r_max, sb_err, sb
-    :returns sb.rad.fit, sb.fit, """
-
-    if isinstance(image, mod_read.ImageClass):
-        if all(['r.' not in key.lower() for key in image.keys()]):
-            seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
-            image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
-
-        if all(['sb' not in key.lower() for key in image.keys()]):
-            calc_sb(image, error=True)
-
-        rad_pix = image['sb.rad.pix']
-        r_max = image['r.max.pix']
-        sb_err = image['sb.err']
-        sb = image['sb']
-
-    else:
-        rad_pix = kw['rad_pix']
-        r_max = kw['r_max']
-        sb_err = kw['sb_err']
-        sb = kw['sb']
-
-    # idxs = np.where(rad_pix < r_max)  # это очень скользко, переделай
-
-    conv_kernel = Gaussian1DKernel(stddev=2.*np.sqrt(np.mean(sb_err)))
-    sb_conv = convolve(sb, conv_kernel, boundary='extend')
-    curvature = find_curvature(rad_pix, sb_conv)
-
-    idxs_valid = np.where(abs(curvature) < 0.1)
-    min_peak = signal.argrelextrema(curvature[idxs_valid], np.less)[0][0]  #должен быть способ изящнее
-    zero_abs = np.where(np.diff(np.sign(curvature[idxs_valid])))[0]
-    max_peak = signal.argrelextrema(curvature[idxs_valid], np.greater)[0]
-    possible_bounds = np.sort(np.concatenate([zero_abs, max_peak]))
-
-    try:
-        low = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)-1]]
-        top = idxs_valid[0][possible_bounds[np.searchsorted(possible_bounds, min_peak)]]
-    except:
-        try:
-            low = idxs_valid[0][signal.argrelextrema(abs(np.gradient(sb_conv[idxs_valid])), np.greater)[0]]
-            top = idxs_valid[0][signal.argrelextrema(abs(np.gradient(sb_conv[idxs_valid])), np.greater)[1]]
-            print('WARNING: interval of parabola fitting was found using gradient of sb_conv')
-        except:
-            low = idxs_valid[0]
-            top = idxs_valid[-1]
-            print("WARNING: interval of parabola fitting wasn't found")
-
-    min_peak = idxs_valid[0][min_peak]
-
-    if (min_peak > low)&(min_peak < top):
-        dist = min([min_peak-low, top-min_peak])
-        low = min_peak-dist
-        top = min_peak+dist
-
-    fit_r = rad_pix[low:top+1]
-    fit_sb = sb[low:top+1]
-    p = np.poly1d(np.polyfit(fit_r, fit_sb, deg=2))
-
-    try:
-        r_min = opt.minimize_scalar(-p, method='Bounded', bounds=[fit_r[0], fit_r[-1]]).x
-    except:
-        r_min = 0.
-        print("couldn't find parabolda minimum")
-
-    if 'plot' in kw:
-        f, (ax1, ax2) = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 2]}, sharex=True, figsize=(8, 10))
-        ax1.plot(rad_pix, sb, color='darkred', lw=1, label='profile')
-        ax1.plot(rad_pix, sb_conv, color='darkmagenta', alpha=0.2, lw=6, label='convolved profile')
-        ax1.plot(fit_r, p(fit_r), color='k', label='approx')
-        ax1.axvline(rad_pix[low], color='y')
-        ax1.axvline(rad_pix[top], color='g')
-        ax1.axvline(rad_pix[min_peak], color='red')
-        ax1.axvline(r_min, color='orchid', lw=3)
-        ax1.set_xlabel('r (arcsec)')
-        ax1.set_ylabel('$\mu \quad (mag\:arcsec^{-2})$')
-        ax1.legend()
-        ax1.set_ylim(max(sb), min(sb))
-        ax2.scatter(rad_pix, abs(curvature), s=14, label='|curvature|')
-        ax2.scatter(rad_pix, curvature, s=14, label='curvature')
-        ax2.axhline(0.)
-        ax2.legend()
-        plt.grid()
-        plt.show()
-        plt.close()
-
-    if isinstance(image, mod_read.ImageClass):
-        image.prop(['sb.rad.fit', 'sb.fit', 'sb.rad.min'],
-               data=[fit_r, p(fit_r), r_min])
-
-    return fit_r, p(fit_r), r_min  #rad_pix[idxs_valid[0][-1]]  # pix vs arcsec flag
 
 
 def find_parabola(image, **kw):
@@ -518,63 +425,63 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     return rad, slits
 
 
-# def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, plot=False, **kw):
-#     image_work = image['real']
-#     value = np.sqrt(((image_work.shape[0] / 2.0) ** 2.0) + ((image_work.shape[1] / 2.0) ** 2.0))
-#
-#     polar_image = cv2.linearPolar(image_work, (image_work.shape[0] / 2, image_work.shape[1] / 2), value, cv2.WARP_FILL_OUTLIERS)
-#     # print(type(polar_image), np.shape(polar_image))
-#
-#     # norm = ImageNormalize(stretch=LogStretch())
-#     # plt.figure()
-#     # plt.imshow(polar_image, origin='lower', cmap='Greys')
-#     # ticks = np.linspace(0, image.shape[1], 10)  # y or x len in case of non-square image?
-#     # plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image.shape[1], 1)) for tick in ticks])
-#     # plt.show()
-#
-#     # r_range = np.linspace(0, nx, 50)
-#     # phi_range = np.linspace(0, 2 * np.pi, 150)
-#
-#     if all(['r.' not in key.lower() for key in image.keys()]):
-#         if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
-#             try:
-#                 image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
-#             except:
-#                 image['r.max.pix'] = image['petroR90'] * 3
-#         elif ('seg' not in image.keys()) or ('petro' in kw):
-#             image['r.max.pix'] = image['petroR90']  # or petroR90 * 2.; check .prop()
-#
-#     len_I = image['r.max.pix']
-#     I = np.zeros((len(harmonics), len_I))
-#
-#     j = 0
-#     for r in range(sig, len_I-sig):
-#         # data_r = polar_image[:, r]
-#         data_r = [np.mean(row) for row in polar_image[:, r-sig:r+sig]]
-#         data_fft = fft.dct(data_r)
-#         i = 0
-#         for harmonic in harmonics:
-#             I[i][j] = abs(data_fft[harmonic])/abs(data_fft[0])
-#             i += 1
-#         j += 1
-#         # if r == 40:
-#         #     freq = fft.fftfreq(len(data_r), 1. / len(data_r))
-#         #     nx = image.shape[0]
-#         #     plt.figure()
-#         #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, polar_image[:, r])
-#         #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, 1. / nx * sum(
-#         #         [data_fft[i] * np.cos(freq[i] * np.linspace(0, nx, nx) * np.pi / nx) for i in range(len(data_fft))]))
-#         #     plt.show()
-#
-#     if 'plot':
-#         plt.figure()
-#         for i in range(len(harmonics)):
-#             plt.plot(np.linspace(0, len_I, len_I)*0.396, I[i], label=harmonics[i])
-#         plt.legend()
-#         if 'savename' in kw:
-#             plt.savefig(kw['savename'])
-#         plt.show()
-#         plt.close()
-#     image.prop('fourier.harm', data=I)
-#     return I
+def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, plot=True, **kw):
+    image_work = image['real.mag']
+    value = np.sqrt(((image_work.shape[0] / 2.0) ** 2.0) + ((image_work.shape[1] / 2.0) ** 2.0))
+
+    polar_image = cv2.linearPolar(image_work, (image_work.shape[0] / 2, image_work.shape[1] / 2), value, cv2.WARP_FILL_OUTLIERS)
+    # print(type(image_work), np.shape(image_work))
+
+    norm = ImageNormalize(stretch=LogStretch())
+    # plt.figure()
+    # plt.imshow(polar_image, origin='lower', cmap='Greys')
+    # ticks = np.linspace(0, image_work.shape[1], 10)  # y or x len in case of non-square image?
+    # plt.yticks(ticks, [str(np.round(tick * 2. * np.pi / image_work.shape[1], 1)) for tick in ticks])
+    # plt.show()
+
+    # r_range = np.linspace(0, nx, 50)
+    # phi_range = np.linspace(0, 2 * np.pi, 150)
+
+    if all(['r.' not in key.lower() for key in image.keys()]):
+        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
+            try:
+                image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
+            except:
+                image['r.max.pix'] = image['petroR90'] * 3
+        elif ('seg' not in image.keys()) or ('petro' in kw):
+            image['r.max.pix'] = image['petroR90']  # or petroR90 * 2.; check .prop()
+
+    len_I = int(math.ceil(image['r.max.pix']))
+    I = np.zeros((len(harmonics), len_I))
+
+    j = 0
+    for r in range(sig, len_I-sig):
+        # data_r = polar_image[:, r]
+        data_r = [np.mean(row) for row in polar_image[:, r-sig:r+sig]]
+        data_fft = fft.dct(data_r)
+        i = 0
+        for harmonic in harmonics:
+            I[i][j] = abs(data_fft[harmonic])/abs(data_fft[0])
+            i += 1
+        j += 1
+        # if r == 40:
+        #     freq = fft.fftfreq(len(data_r), 1. / len(data_r))
+        #     nx = image.shape[0]
+        #     plt.figure()
+        #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, polar_image[:, r])
+        #     plt.plot(np.linspace(0, nx, nx) * 2. * np.pi / nx, 1. / nx * sum(
+        #         [data_fft[i] * np.cos(freq[i] * np.linspace(0, nx, nx) * np.pi / nx) for i in range(len(data_fft))]))
+        #     plt.show()
+    r = range(sig, len_I-sig)
+    if plot:
+        plt.figure()
+        for i in range(len(harmonics)):
+            plt.plot(r, I[i][:len(r)], label=harmonics[i])
+        plt.legend()
+        if 'savename' in kw:
+            plt.savefig(kw['savename'])
+        plt.show()
+        plt.close()
+    image.prop('fourier.harm', data=I)
+    return I
 
