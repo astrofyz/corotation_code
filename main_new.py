@@ -14,17 +14,18 @@ from time import time
 from matplotlib.gridspec import GridSpec
 from scipy.signal import argrelextrema
 
-table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
-im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
-out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
-names = np.loadtxt('gal_names.txt', dtype='str')
+# table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
+# im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
+# out_path = '/media/mouse13/Seagate Expansion Drive/corotation_code/data/newnew/'
+# names = np.loadtxt('gal_names.txt', dtype='str')
 
 
-# table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag.csv'
-# dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
-# im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/input/'
-# out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
-# names = [elem.split('.')[0] for elem in os.listdir(im_path)]
+table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02_zpt06_lgmgt9_MANGA_barflag1.csv'
+dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
+im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
+out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
+out_table_name = out_path+'ring_flag.csv'
+names = [elem.split('.')[0] for elem in os.listdir(im_path+'input/')]
 
 # print(names)
 # images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
@@ -47,92 +48,25 @@ def figure(num=1, **kw):
     plt.close()
 
 
-# for image in images[:]:
-#     try:
-#         for band in ['r', 'g', 'z', 'u', 'i']: #почему ошибки с plot false, что там происходит?
-#             find_parabola(image[band], plot=False, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
-#
-#         # calc_slit(image['z'], 40, convolve=True)  # возможно, вообще не надо
-#         for band in ['z', 'g', 'r', 'u', 'i']:
-#             if 'eps' not in image[band].keys():
-#                 image[band]['eps'] = 0.
-#
-#         # plot surface brigtness profiles with fitted parabola
-#         # with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
-#         #     plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
-#         #     plt.gca().invert_yaxis()
-#         #     for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'gold', 'm'][:3]):
-#         #         plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
-#         #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
-#         #         plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
-#         #         plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
-#         #         # plt.vlines(kmeans.cluster_centers_.T[1]*0.396, ymin=plt.gca().get_ylim()[0], ymax=plt.gca().get_ylim()[1], label='kmeans')
-#         #     plt.legend()
-#
-#         # find position angle of bar
-#         # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objID14'])+'_slits.png')
-#         # r_min_slit_0 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
-#         #                                    sb_err=np.split(np.array(image['r']['slit.min.err'][:-1]), 2)[1],
-#         #                                    r_max=image['r']['r.max.pix'],
-#         #                                    sb=np.split(np.array(image['r']['slit.min'][:-1]), 2)[1])
-#         #
-#         # print(r_min_slit_0[-1])
-#         # r_min_slit_1 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
-#         #                              sb_err=np.split(np.array(image['r']['slit.max.err'][:-1]), 2)[1],
-#         #                              r_max=image['r']['r.max.pix'],
-#         #                              sb=np.split(np.array(image['r']['slit.max'][:-1]), 2)[1], plot=True)[-1]
-#         #
-#         # print(r_min_slit_1[-1])
-#         # plot "bar"
-#         # with figure(show=True) as fig:
-#
-#         # with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
-#         #     plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image['z']['eps'], 3)))
-#         #     plt.imshow(image['z']['real.mag'], origin='lower', cmap='Greys',
-#         #                norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
-#             # idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
-#             # idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
-#             # print(image['r']['slits.rad.pix'][idx_bar])
-#             # xc, yc = np.array([int(dim / 2) for dim in np.shape(image['z']['real.mag'])])
-#             # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
-#             # aper.plot(lw=0.2, color='blue', label='max_resid')
-#             # aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
-#             # aper.plot(lw=0.3, color='red', label='corot_r')
-#             # aper = CircularAperture([xc, yc], abs(image['g']['sb.rad.min']))
-#             # aper.plot(lw=0.3, color='blue', label='corot_g')
-#             # aper = CircularAperture([xc, yc], abs(image['i']['sb.rad.min']))
-#             # aper.plot(lw=0.3, color='gold', label='corot_i')
-#             # aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
-#             # aper.plot(lw=0.3, color='green', label='corot_u')
-#             # aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
-#             # aper.plot(lw=0.3, color='purple', label='corot_z')
-#             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
-#             # aper.plot(lw=0.2, color='red', label='perpendicular')
-#             # plt.legend()
-#     except:
-#         print(image['objID'], 'none')
-#         pass
-
 # def rescale(data, a=-1, b=1):
 #     min_x = min(data)
 #     max_x = max(data)
 #     return (b-a)*(data-min_x)/(max_x-min_x) + a
+# band = 'g'
+# images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
+#                      calibration=True, manga=True, path_table=table_path)
 
-# images = make_images(names=names[:], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 
-#%%
 start = time()
 dn = 6
 n = len(names[:])
-print(n)
+# print(n)
 chunk = 0
 for chunk in range(0, n, dn):
     dc = min(chunk+dn, n)
-    # for image in images[:]:
-    # try:
-    for band, color in zip(['g', 'r', 'z', 'i', 'u'][:], ['blue', 'r', 'g', 'darkorange', 'm'][:]):
-        images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path, SE=True,
-                             calibration=True, correction=True)
+    for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkorange', 'm'][:1]):
+        images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
+                             calibration=True, manga=True, path_table=table_path)
         for image in images:
             try:
                 xc, yc = np.array([int(dim / 2) for dim in np.shape(image[band]['real.mag'])])
@@ -146,7 +80,7 @@ for chunk in range(0, n, dn):
                 radius = np.linspace(min(rad), max(rad), 500)
                 sb = image[band]['sb']
                 sb_err = image[band]['sb.err']
-                conv_kernel = Gaussian1DKernel(stddev=4. * np.sqrt(np.mean(sb_err)))
+                conv_kernel = Gaussian1DKernel(stddev=max([2, 0.05*len(rad)]))
                 sb_conv = convolve(sb, conv_kernel, boundary='extend')
                 curvature = find_curvature(rad, sb)
                 curvature_conv = find_curvature(rad, sb_conv)
@@ -165,8 +99,8 @@ for chunk in range(0, n, dn):
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
-                    ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.1)
-                    ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.1)
+                    ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.7)
+                    ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.7)
                     intervals.append([roots[i], roots[i+1]])
                     # can take 90% of interval, if want to reduce something; still can't understand what's wrong lol
                     # min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
@@ -179,13 +113,16 @@ for chunk in range(0, n, dn):
                     idxs_rad = np.where((rad < interval[1]) & (rad > interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
                     ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
-                    if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.mean(image[band]['sb.err'][idxs_rad]):
+                    if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
                         try:
                             rad_gap = opt.minimize_scalar(-p, method='Bounded',
                                                           bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
-                            ax2.axvline(rad_gap, color=color, alpha=0.7) #, label=np.round(p[2], 3))
-                            aper = CircularAperture([xc, yc], rad_gap)
-                            aper.plot(axes=ax1, lw=0.5, color=color)
+                            if rad_gap < np.percentile(rad[idxs_rad], 99):
+                                ax2.axvline(rad_gap, color=color, alpha=0.7) #, label=np.round(p[2], 3))
+                                aper = CircularAperture([xc, yc], rad_gap)
+                                aper.plot(axes=ax1, lw=0.5, color=color)
+                            else:
+                                print('minimum on the edge')
                         except:
                             print(f'no minimum for this interval {interval}')
                     else:
@@ -204,7 +141,7 @@ for chunk in range(0, n, dn):
                 plt.suptitle('{}\nband: {}'.format(image['name'], band))
                 plt.tight_layout()
                 fig.show()
-                fig.savefig(out_path+f"sb_check/{band}/all_f_{str(image['objID'])}_{band}.png")
+                fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
             # print(image['name'])
             except:
@@ -212,6 +149,67 @@ for chunk in range(0, n, dn):
                 pass
 print(time()-start)
 
+#%%
+from matplotlib.colors import Normalize
+plt.figure()
+plt.imshow(images[0]['g']['real'], origin='lower', cmap='Greys_r')
+plt.colorbar()
+plt.show()
+
+plt.figure()
+plt.imshow(images[0]['g']['real.mag'], origin='lower', cmap='Greys_r')
+plt.colorbar()
+plt.show()
+
+plt.figure()
+plt.imshow(images[0]['g']['total_error'], origin='lower', cmap='Greys_r')
+plt.colorbar()
+plt.show()
+
+plt.figure()
+plt.imshow(images[0]['g']['total_error']/(images[0]['g']['real']*images[0]['g']['real.mag']), origin='lower', cmap='Greys_r',
+           norm=Normalize(0., 3.4))
+plt.colorbar()
+plt.show()
+
+bg_mag = calc_bkg(images[0]['g']['real.mag'], images[0]['g']['seg'])
+error_mag = calc_total_error(images[0]['g']['real.mag'], bg_mag.background_rms, images[0]['g']['gain'])
+
+plt.figure()
+plt.imshow(error_mag, origin='lower', cmap='Greys_r')
+plt.colorbar()
+plt.show()
+#%%
+print(images[0]['g']['sb.err'])
+print(images[0]['g']['sb'])
+
+#%%
+bg = calc_bkg(images[0]['r']['real'], images[0]['r']['seg'])
+bg_mag = calc_bkg(images[0]['r']['real.mag'], images[0]['r']['seg'])
+#%%
+plt.figure()
+plt.imshow(bg.background)
+plt.colorbar()
+plt.show()
+
+plt.figure()
+plt.imshow(bg_mag.background)
+plt.colorbar()
+plt.show()
+
+#%%
+errr = calc_total_error(images[0]['r']['real'], bg.background_rms, images[0]['r']['gain'])
+errr_mag = calc_total_error(images[0]['r']['real.mag'], bg_mag.background_rms, images[0]['r']['gain'])
+
+plt.figure()
+plt.imshow(errr)
+plt.colorbar()
+plt.show()
+
+plt.figure()
+plt.imshow(errr_mag)
+plt.colorbar()
+plt.show()
 #%%
 # print(chunk, dc)
 # importlib.reload(mod_analysis)
@@ -542,3 +540,70 @@ print(time()-start)
 # fig.tight_layout()
 #
 # plt.show()
+
+#%%
+# for image in images[:]:
+#     try:
+#         for band in ['r', 'g', 'z', 'u', 'i']: #почему ошибки с plot false, что там происходит?
+#             find_parabola(image[band], plot=False, band=band, savename=out_path+f"sb_check/sb_{str(image['objID'])}_{band}.png")
+#
+#         # calc_slit(image['z'], 40, convolve=True)  # возможно, вообще не надо
+#         for band in ['z', 'g', 'r', 'u', 'i']:
+#             if 'eps' not in image[band].keys():
+#                 image[band]['eps'] = 0.
+#
+#         # plot surface brigtness profiles with fitted parabola
+#         # with figure(xlabel='r (arcsec)', ylabel='$\mu[g, i, r, u, z] \quad (mag\:arcsec^{-2})$', savename=out_path+str(image['objID'])+'.png') as fig:
+#         #     plt.title('{}\n ra={}; dec={}'.format(image['name'], np.round(image['ra'],3), np.round(image['dec'], 3)))
+#         #     plt.gca().invert_yaxis()
+#         #     for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'gold', 'm'][:3]):
+#         #         plt.plot(image[band]['sb.rad.pix']*0.396, image[band]['sb'], color=color,  label='{} : {}'''.format(band, np.round(image[band]['sb.rad.min'], 3)))
+#         #         plt.fill_between(image[band]['sb.rad.pix']*0.396, image[band]['sb']-image[band]['sb.err'], image[band]['sb']+image[band]['sb.err'], color=color,  alpha=0.1)
+#         #         plt.plot(image[band]['sb.rad.fit']*0.396, image[band]['sb.fit'], color='k')
+#         #         plt.axvline(image[band]['sb.rad.min']*0.396, color=color)
+#         #         # plt.vlines(kmeans.cluster_centers_.T[1]*0.396, ymin=plt.gca().get_ylim()[0], ymax=plt.gca().get_ylim()[1], label='kmeans')
+#         #     plt.legend()
+#
+#         # find position angle of bar
+#         # image['r'].plot_slits(n_slit=40, savename=out_path+str(image['objID14'])+'_slits.png')
+#         # r_min_slit_0 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
+#         #                                    sb_err=np.split(np.array(image['r']['slit.min.err'][:-1]), 2)[1],
+#         #                                    r_max=image['r']['r.max.pix'],
+#         #                                    sb=np.split(np.array(image['r']['slit.min'][:-1]), 2)[1])
+#         #
+#         # print(r_min_slit_0[-1])
+#         # r_min_slit_1 = find_fancy_parabola(image=False, rad_pix=np.split(np.array(image['r']['slits.rad.pix'][:-1]), 2)[1],
+#         #                              sb_err=np.split(np.array(image['r']['slit.max.err'][:-1]), 2)[1],
+#         #                              r_max=image['r']['r.max.pix'],
+#         #                              sb=np.split(np.array(image['r']['slit.max'][:-1]), 2)[1], plot=True)[-1]
+#         #
+#         # print(r_min_slit_1[-1])
+#         # plot "bar"
+#         # with figure(show=True) as fig:
+#
+#         # with figure(savename=out_path+'bar_'+str(image['objID'])+'.png') as fig:
+#         #     plt.title('{}\n ra={}; dec={}; eps={}'.format(image['name'], np.round(image['ra'], 3), np.round(image['dec'], 3), np.round(image['z']['eps'], 3)))
+#         #     plt.imshow(image['z']['real.mag'], origin='lower', cmap='Greys',
+#         #                norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
+#             # idx = np.argmax([sum(abs(row)) for row in image['r']['residuals']])  # перенести это в функцию
+#             # idx_bar = np.argmax(abs(image['r']['residuals'][idx]))
+#             # print(image['r']['slits.rad.pix'][idx_bar])
+#             # xc, yc = np.array([int(dim / 2) for dim in np.shape(image['z']['real.mag'])])
+#             # aper = CircularAperture([xc, yc], abs(image['r']['slits.rad.pix'][idx_bar]))
+#             # aper.plot(lw=0.2, color='blue', label='max_resid')
+#             # aper = CircularAperture([xc, yc], abs(image['r']['sb.rad.min']))
+#             # aper.plot(lw=0.3, color='red', label='corot_r')
+#             # aper = CircularAperture([xc, yc], abs(image['g']['sb.rad.min']))
+#             # aper.plot(lw=0.3, color='blue', label='corot_g')
+#             # aper = CircularAperture([xc, yc], abs(image['i']['sb.rad.min']))
+#             # aper.plot(lw=0.3, color='gold', label='corot_i')
+#             # aper = CircularAperture([xc, yc], abs(image['u']['sb.rad.min']))
+#             # aper.plot(lw=0.3, color='green', label='corot_u')
+#             # aper = CircularAperture([xc, yc], abs(image['z']['sb.rad.min']))
+#             # aper.plot(lw=0.3, color='purple', label='corot_z')
+#             # aper = CircularAperture([xc, yc], r_min_slit_0[-1])
+#             # aper.plot(lw=0.2, color='red', label='perpendicular')
+#             # plt.legend()
+#     except:
+#         print(image['objID'], 'none')
+#         pass

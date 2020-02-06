@@ -153,7 +153,7 @@ def ellipse_fit(image, property_name=True, **kw):
             image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
 
 
-def calc_sb(image, **kw):
+def calc_sb(image, error=True, **kw):
     """image - instance of ImageClass (in certain band)
        step - width of elliptical annulus
         f_max - maximal semimajor axis / sma_catalog
@@ -162,14 +162,20 @@ def calc_sb(image, **kw):
     xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real'])])
     theta = image['cat'][1].data.T[0]['THETA_IMAGE']  #degrees???
 
+    seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+
+    # print(image.keys())
+    # print(['r.' not in key.lower() for key in image.keys()])
+    # print(all(['r.' not in key.lower() for key in image.keys()]))
     if all(['r.' not in key.lower() for key in image.keys()]):
-        seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
         image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
     if 'step' in kw:
         step = kw['step']
     else:
-        step = image['FD']*0.8
+        step = find_outer(seg_func(image)[1:])[-1]*0.8
+        # print(step)
+        # step = image['FD']*0.8
 
     if 'eps' not in image:
         try:
@@ -189,11 +195,32 @@ def calc_sb(image, **kw):
     for i in range(1, len(a)):
         annulae.append(EllipticalAnnulus((xc, yc), a[i-1], a[i], b[i], theta=theta))
 
-    if 'error' in kw:
-        total_error = calc_total_error(image['real.mag'], image['bg'].background_rms, image['gain'])
+    # print('fig start')
+    # plt.figure()
+    # plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
+    # for ann in annulae:
+    #     # print(type(ann))
+    #     ann.plot()
+    # plt.show()
+    # plt.close()
+    # print('fig end')
+
+
+    if error:
+        total_error = calc_total_error(image['real'], image['bg'].background_rms, image['gain'])
+        # plt.figure()
+        # plt.imshow(total_error)
+        # plt.colorbar()
+        # plt.show()
+        # bkg = calc_bkg(image['real.mag'], image['seg'])
+        # total_error = calc_total_error(image['real.mag'], bkg.background_rms, image['gain'])
+        # plt.figure()
+        # plt.imshow(total_error)
+        # plt.colorbar()
+        # plt.show()
         image.prop('total_error', data=total_error)
-        table_aper = aperture_photometry(image['real.mag'], annulae, error=total_error)
-        # print(len(annulae), 'ann')
+        table_aper = aperture_photometry(image['real.mag'], annulae, error=image['total_error'])
+        # print(len(annulae), 'ann')imshow
         # print((table_aper['aperture_sum_3']))
         num_apers = int((len(table_aper.colnames) - 3)/2)
         intens = []
@@ -202,10 +229,12 @@ def calc_sb(image, **kw):
             # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
             try:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
-                int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area)
+                int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area))
+                # print(int_error[-1], annulae[i].area)
             except:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
-                int_error.append(table_aper['aperture_sum_err_'+str(i)] / annulae[i].area())
+                int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area()))
+                print(int_error[-1], annulae[i].area())
         intens = np.array(intens).flatten()
         int_error = np.array(int_error).flatten()
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])

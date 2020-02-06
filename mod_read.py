@@ -267,12 +267,12 @@ def make_images(names, bands='all', types='all',
                             print(f'WARNING: no column "{col_err}"; set with 0')  # лучше с None
                 seg_func = lambda x: x['seg'] if 'seg' in x.keys() else None
                 image[band].prop('bg', data=calc_bkg(image[band]['real'], seg_func(image[band]), mode='nearest'))
-                total_error = calc_total_error(image[band]['real'], image[band]['bg'].background_rms, 4.64)
+                total_error = calc_total_error(image[band]['real'], image[band]['bg'].background_rms, image[band]['gain'])
                 image[band].prop('total_error', data=total_error)
                 image[band].prop('real.bg', data=image[band]['real'] - image[band]['bg'].background)
-                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=22.5))
+                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=22.5, texp=1.))
+                image[band].prop('total_error_mag', data=total_error/(image[band]['real']*image[band]['real.mag']))
             images.append(image)
-
 
     if 'seeing' in kw:
         max_seeing = max([image[band]['seeing'] for band in bands])

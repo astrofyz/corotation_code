@@ -41,8 +41,8 @@ def figure(**kw):
 
 
 start = time()
-dn = 2
-n = len(names[:15])
+dn = 1
+n = len(names[:3])
 columns = np.array([[f'R_{band}', f'IR_{band}', f'OR_{band}'] for band in ['g', 'r', 'z', 'i', 'u']]).flatten()
 out_table = pd.DataFrame(columns=columns)
 out_table.insert(0, 'objID', [])
@@ -58,9 +58,6 @@ for chunk in range(0, n, dn):
     for band, color in zip(['g', 'r', 'z', 'i', 'u'][:3], ['blue', 'r', 'g', 'darkorange', 'm'][:3]):
         images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
                              calibration=True, manga=True, path_table=table_path)
-        print(len(images))
-        print(images)
-        # all_table.loc[all_table.objID == int(name), [prop_name]].values[0][0]
         for image in images:
             R_flag = False
             IR_flag = False
@@ -131,7 +128,7 @@ for chunk in range(0, n, dn):
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['objID'], band))
                 plt.tight_layout()
-                fig.show()
+                # fig.show()
                 fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
             except:

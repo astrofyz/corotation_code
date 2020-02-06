@@ -89,15 +89,12 @@ def calc_bkg(image, mask, **kwargs):
     return bkg
 
 
-def to_mag(**kwargs):
+def to_mag(image, zp, texp=53.907):
     """kwargs:
     image - image 2D array
     zp - zeropoint
     (for one instance now)"""
 
-    texp = 53.907
-    image = kwargs.get('image')
-    zp = kwargs.get('zp')
     return zp-2.5*np.log10(abs(image/texp))
 
 
