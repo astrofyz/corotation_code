@@ -58,7 +58,7 @@ def figure(num=1, **kw):
 
 
 start = time()
-dn = 6
+dn = 8
 n = len(names[:])
 # print(n)
 chunk = 0
@@ -86,7 +86,7 @@ for chunk in range(0, n, dn):
                 curvature_conv = find_curvature(rad, sb_conv)
                 ax1.imshow(image[band]['real.mag'], origin='lower', cmap='Greys',
                            norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
-                ax2.plot(rad, sb, color=color, lw=1.)
+                ax2.scatter(rad, sb, color=color, s=1.)
                 ax2.plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
                 ax2.fill_between(image[band]['sb.rad.pix'], image[band]['sb'] - image[band]['sb.err']/2.,
                                  image[band]['sb'] + image[band]['sb.err']/2., color=color, alpha=0.1)
@@ -98,10 +98,18 @@ for chunk in range(0, n, dn):
                 roots = sproot(tck, mest=10)
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
+                max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
                     ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.7)
                     ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.7)
+                    # try:
+                    #     intervals.append([roots[i],
+                    #                       rad[np.where((rad > roots[i+1])&(rad < roots[i+2]))][np.argmax(curvature_conv[np.where((rad > roots[i+1])&(rad < roots[i+2]))])]])
+                    # except:
                     intervals.append([roots[i], roots[i+1]])
+                    ax3.axvline(intervals[-1][0], color='gold', ls='-')
+                    ax3.axvline(intervals[-1][1], color='gold', ls='-')
+
                     # can take 90% of interval, if want to reduce something; still can't understand what's wrong lol
                     # min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
                     #                            bounds=[roots[i], roots[i + 1]]).x
@@ -110,37 +118,40 @@ for chunk in range(0, n, dn):
                     #                                       bounds=[min([roots[k], min1]), max(roots[k], min1)]).x for k
                     #                   in [i, i + 1]])
                 for interval in intervals:
-                    idxs_rad = np.where((rad < interval[1]) & (rad > interval[0]))
+                    idxs_rad = np.where((rad <= interval[1]) & (rad >= interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
+                    # print(p)
+                    # print(p[0])
                     ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
                     if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
                         try:
-                            rad_gap = opt.minimize_scalar(-p, method='Bounded',
-                                                          bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
-                            if rad_gap < np.percentile(rad[idxs_rad], 99):
-                                ax2.axvline(rad_gap, color=color, alpha=0.7) #, label=np.round(p[2], 3))
+                            # rad_gap = opt.minimize_scalar(-p, method='Bounded',
+                            #                               bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
+                            rad_gap = -p[1]/(2*p[2])
+                            if (rad_gap < interval[1]*1.1)&(rad_gap > 0.):
+                                ax2.axvline(rad_gap, color=color, alpha=0.7, label=np.round(rad_gap/interval[1], 3))
                                 aper = CircularAperture([xc, yc], rad_gap)
                                 aper.plot(axes=ax1, lw=0.5, color=color)
-                            else:
-                                print('minimum on the edge')
+                            # print('RAD_GAP/INT ', rad_gap/interval[1])
+                            # else:
+                            #     print('minimum on the edge')
                         except:
                             print(f'no minimum for this interval {interval}')
                     else:
                         print('surface brightness change is comparable to error')
-                try:
-                    I = fourier_harmonics(images[0]['g'], harmonics=[2, ], sig=2, plot=False)
-                    rad_f = np.linspace(rad[0], rad[-1], len(I[0]))
-                    ax3.plot(rad_f, I[0], label='2', color='k')
-                    min_f2 = argrelextrema(I[0], np.less)[0]
-                    for rf2 in min_f2[:min([2, len(min_f2)])]:
-                        CircularAperture([xc, yc], rad_f[rf2]).plot(axes=ax1, lw=0.5, color='k', alpha=0.5)
-                except:
-                    print('no fourier')
+                # try:
+                #     I = fourier_harmonics(images[0]['g'], harmonics=[2, ], sig=2, plot=False)
+                #     rad_f = np.linspace(rad[0], rad[-1], len(I[0]))
+                #     ax3.plot(rad_f, I[0], label='2', color='k')
+                #     min_f2 = argrelextrema(I[0], np.less)[0][0]
+                #     CircularAperture([xc, yc], rad_f[min_f2]).plot(axes=ax1, lw=0.5, color='k', alpha=0.5)
+                # except:
+                #     print('no fourier')
                 ax2.invert_yaxis()
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['name'], band))
                 plt.tight_layout()
-                fig.show()
+                # fig.show()
                 fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
             # print(image['name'])
