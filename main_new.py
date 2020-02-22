@@ -24,7 +24,7 @@ table_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/dr14_zpt02
 dirbase = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
 im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
 out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
-out_table_name = out_path+'ring_flag.csv'
+out_table_name = out_path+'ring_flag'
 names = [elem.split('.')[0] for elem in os.listdir(im_path+'input/')]
 
 # print(names)
@@ -47,27 +47,19 @@ def figure(num=1, **kw):
     plt.show()
     plt.close()
 
-
-# def rescale(data, a=-1, b=1):
-#     min_x = min(data)
-#     max_x = max(data)
-#     return (b-a)*(data-min_x)/(max_x-min_x) + a
-# band = 'g'
-# images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
-#                      calibration=True, manga=True, path_table=table_path)
-
-
 start = time()
 dn = 8
-n = len(names[:])
+n = len(names[:3])
 # print(n)
 chunk = 0
-for chunk in range(0, n, dn):
-    dc = min(chunk+dn, n)
-    for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkorange', 'm'][:1]):
+for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkorange', 'm'][:1]):
+    fout = open(out_table_name + f'_{band}.csv', 'a')
+    for chunk in range(0, n, dn):
+        dc = min(chunk + dn, n)
         images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
                              calibration=True, manga=True, path_table=table_path)
-        for image in images:
+        for image in images[:1]:
+            dg_radii = []
             try:
                 xc, yc = np.array([int(dim / 2) for dim in np.shape(image[band]['real.mag'])])
                 fig = plt.figure(figsize=(16, 8))
@@ -98,7 +90,9 @@ for chunk in range(0, n, dn):
                 roots = sproot(tck, mest=10)
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
-                max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
+                arg_max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
+                max_curv_rad = np.append(rad[arg_max_curv_rad], rad[-1])
+                print(max_curv_rad)
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
                     ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.7)
                     ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.7)
@@ -110,13 +104,6 @@ for chunk in range(0, n, dn):
                     ax3.axvline(intervals[-1][0], color='gold', ls='-')
                     ax3.axvline(intervals[-1][1], color='gold', ls='-')
 
-                    # can take 90% of interval, if want to reduce something; still can't understand what's wrong lol
-                    # min1 = opt.minimize_scalar(lambda x: splev(x, tck), method='Bounded',
-                    #                            bounds=[roots[i], roots[i + 1]]).x
-                    # f_min = splev(min1, tck)
-                    # intervals.append([opt.minimize_scalar(lambda y: abs(splev(y, tck) - 0. * f_min), method='Bounded',
-                    #                                       bounds=[min([roots[k], min1]), max(roots[k], min1)]).x for k
-                    #                   in [i, i + 1]])
                 for interval in intervals:
                     idxs_rad = np.where((rad <= interval[1]) & (rad >= interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
@@ -125,13 +112,13 @@ for chunk in range(0, n, dn):
                     ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
                     if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
                         try:
-                            # rad_gap = opt.minimize_scalar(-p, method='Bounded',
-                            #                               bounds=[rad[idxs_rad][0], rad[idxs_rad][-1]]).x
                             rad_gap = -p[1]/(2*p[2])
-                            if (rad_gap < interval[1]*1.1)&(rad_gap > 0.):
+                            # if (rad_gap < interval[1]*1.1)&(rad_gap > 0.):
+                            if np.searchsorted(max_curv_rad, rad_gap) == np.searchsorted(max_curv_rad, interval[1]):
                                 ax2.axvline(rad_gap, color=color, alpha=0.7, label=np.round(rad_gap/interval[1], 3))
                                 aper = CircularAperture([xc, yc], rad_gap)
                                 aper.plot(axes=ax1, lw=0.5, color=color)
+                                dg_radii.append(rad_gap)
                             # print('RAD_GAP/INT ', rad_gap/interval[1])
                             # else:
                             #     print('minimum on the edge')
@@ -151,22 +138,29 @@ for chunk in range(0, n, dn):
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['name'], band))
                 plt.tight_layout()
-                # fig.show()
-                fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
+                fig.show()
+                # fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
+                fout.write(';'.join([image['objID'], str(int(len(dg_radii)>0)), str(dg_radii), '\n']))
             # print(image['name'])
             except:
                 print(image['objID'], band, 'none')
                 pass
+    fout.close()
 print(time()-start)
 
 #%%
+plt.figure()
+plt.plot(images[0]['g']['sb.rad.pix'], images[0]['g']['sb.err'], lw=2)
+plt.show()
+#%%
 from matplotlib.colors import Normalize
 plt.figure()
-plt.imshow(images[0]['g']['real'], origin='lower', cmap='Greys_r')
+plt.imshow(images[0]['g']['real.bg'], origin='lower', cmap='Greys_r')
 plt.colorbar()
 plt.show()
 
+#%%
 plt.figure()
 plt.imshow(images[0]['g']['real.mag'], origin='lower', cmap='Greys_r')
 plt.colorbar()

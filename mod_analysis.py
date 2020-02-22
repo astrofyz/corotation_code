@@ -195,15 +195,16 @@ def calc_sb(image, error=True, **kw):
     for i in range(1, len(a)):
         annulae.append(EllipticalAnnulus((xc, yc), a[i-1], a[i], b[i], theta=theta))
 
-    # print('fig start')
-    # plt.figure()
-    # plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
-    # for ann in annulae:
-    #     # print(type(ann))
-    #     ann.plot()
-    # plt.show()
-    # plt.close()
-    # print('fig end')
+    print('fig start')
+    print(len(annulae))
+    plt.figure()
+    plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
+    for ann in annulae[::2]:
+        # print(type(ann))
+        ann.plot(lw=0.1)
+    plt.show()
+    plt.close()
+    print('fig end')
 
 
     if error:
@@ -219,18 +220,20 @@ def calc_sb(image, error=True, **kw):
         # plt.colorbar()
         # plt.show()
         image.prop('total_error', data=total_error)
-        table_aper = aperture_photometry(image['real.mag'], annulae, error=image['total_error'])
+        table_aper = aperture_photometry(image['real.bg'], annulae, error=image['total_error'])
         # print(len(annulae), 'ann')imshow
         # print((table_aper['aperture_sum_3']))
         num_apers = int((len(table_aper.colnames) - 3)/2)
+        print(table_aper)
         intens = []
         int_error = []
         for i in range(num_apers):
             # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
             try:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
-                int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area))
+                int_error.append(table_aper['aperture_sum_err_'+str(i)] / (annulae[i].area))
                 # print(int_error[-1], annulae[i].area)
+                print(annulae[i].area, table_aper['aperture_sum_' + str(i)], table_aper['aperture_sum_err_'+str(i)])
             except:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
                 int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area()))
@@ -240,7 +243,7 @@ def calc_sb(image, error=True, **kw):
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
         return (a[1:] + a[:-1]) / 2., intens, int_error
     else:
-        table_aper = aperture_photometry(image['real.mag'], annulae)
+        table_aper = aperture_photometry(image['real.bg'], annulae)
         num_apers = len(table_aper.colnames) - 3
         intens = []
         for i in range(num_apers):
