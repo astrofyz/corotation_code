@@ -195,16 +195,16 @@ def calc_sb(image, error=True, **kw):
     for i in range(1, len(a)):
         annulae.append(EllipticalAnnulus((xc, yc), a[i-1], a[i], b[i], theta=theta))
 
-    print('fig start')
-    print(len(annulae))
-    plt.figure()
-    plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
-    for ann in annulae[::2]:
-        # print(type(ann))
-        ann.plot(lw=0.1)
-    plt.show()
-    plt.close()
-    print('fig end')
+    # print('fig start')
+    # print(len(annulae))
+    # plt.figure()
+    # plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
+    # for ann in annulae[::2]:
+    #     # print(type(ann))
+    #     ann.plot(lw=0.1)
+    # plt.show()
+    # plt.close()
+    # print('fig end')
 
 
     if error:
@@ -224,7 +224,6 @@ def calc_sb(image, error=True, **kw):
         # print(len(annulae), 'ann')imshow
         # print((table_aper['aperture_sum_3']))
         num_apers = int((len(table_aper.colnames) - 3)/2)
-        print(table_aper)
         intens = []
         int_error = []
         for i in range(num_apers):
@@ -233,14 +232,17 @@ def calc_sb(image, error=True, **kw):
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
                 int_error.append(table_aper['aperture_sum_err_'+str(i)] / (annulae[i].area))
                 # print(int_error[-1], annulae[i].area)
-                print(annulae[i].area, table_aper['aperture_sum_' + str(i)], table_aper['aperture_sum_err_'+str(i)])
+                # print('sum', table_aper['aperture_sum_' + str(i)])
+                # print('err', table_aper['aperture_sum_err_'+str(i)])
             except:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
                 int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area()))
-                print(int_error[-1], annulae[i].area())
+                # print(int_error[-1], annulae[i].area())
         intens = np.array(intens).flatten()
         int_error = np.array(int_error).flatten()
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
+        image.prop(['sb.mag', 'sb.err.mag'],
+                   data=[to_mag(intens, zp=image['zp'], texp=image['texp']), abs(2.5*np.log10(1+int_error/intens))])
         return (a[1:] + a[:-1]) / 2., intens, int_error
     else:
         table_aper = aperture_photometry(image['real.bg'], annulae)

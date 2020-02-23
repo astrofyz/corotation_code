@@ -47,6 +47,7 @@ def figure(num=1, **kw):
     plt.show()
     plt.close()
 
+
 start = time()
 dn = 8
 n = len(names[:3])
@@ -70,27 +71,32 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 calc_sb(image[band], error=True)
                 rad = image[band]['sb.rad.pix']
                 radius = np.linspace(min(rad), max(rad), 500)
-                sb = image[band]['sb']
-                sb_err = image[band]['sb.err']
+                sb = image[band]['sb.mag']
+                sb_err = image[band]['sb.err.mag']
                 conv_kernel = Gaussian1DKernel(stddev=max([2, 0.05*len(rad)]))
                 sb_conv = convolve(sb, conv_kernel, boundary='extend')
                 curvature = find_curvature(rad, sb)
                 curvature_conv = find_curvature(rad, sb_conv)
+                curvature_conv1 = convolve(curvature, conv_kernel, boundary='extend')
                 ax1.imshow(image[band]['real.mag'], origin='lower', cmap='Greys',
                            norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
                 ax2.scatter(rad, sb, color=color, s=1.)
                 ax2.plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
-                ax2.fill_between(image[band]['sb.rad.pix'], image[band]['sb'] - image[band]['sb.err']/2.,
-                                 image[band]['sb'] + image[band]['sb.err']/2., color=color, alpha=0.1)
-                ax3.plot(rad, curvature_conv, color=color, lw=1., alpha=0.6)
+                ax2.fill_between(image[band]['sb.rad.pix'], image[band]['sb.mag'] - image[band]['sb.err.mag'],
+                                 image[band]['sb.mag'] + image[band]['sb.err.mag'], color=color, alpha=0.1)
+                # ax3.plot(rad, curvature_conv, color='k', lw=1., alpha=0.6)
+                # ax3.plot(rad, curvature_conv1, color='r', lw=1., alpha=0.6)
+                ax3.plot(rad, curvature, color=color, lw=1., alpha=0.6)
                 ax3.axhline(0., color='k', lw=0.5)
-                tck = splrep(rad, curvature_conv)
+                # tck = splrep(rad, curvature_conv)
+                tck = splrep(rad, curvature)
                 ynew = splev(radius, tck)
-                ax3.plot(radius, ynew, color=color, lw=1.)
+                ax3.plot(radius, ynew, color='gold', lw=1.)
                 roots = sproot(tck, mest=10)
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
-                arg_max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
+                # arg_max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
+                arg_max_curv_rad = signal.argrelextrema(curvature, np.greater)
                 max_curv_rad = np.append(rad[arg_max_curv_rad], rad[-1])
                 print(max_curv_rad)
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
@@ -107,10 +113,10 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 for interval in intervals:
                     idxs_rad = np.where((rad <= interval[1]) & (rad >= interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
-                    # print(p)
-                    # print(p[0])
+                    p1 = np.poly1d(np.polyfit([rad[idxs_rad][0], rad[idxs_rad][-1]], [sb[idxs_rad][0], sb[idxs_rad][-1]], deg=1))
                     ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
-                    if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
+                    if max(abs(p1(rad[idxs_rad])-sb[idxs_rad]))>max(sb_err[idxs_rad]):
+                    # if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
                         try:
                             rad_gap = -p[1]/(2*p[2])
                             # if (rad_gap < interval[1]*1.1)&(rad_gap > 0.):
@@ -150,9 +156,28 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
 print(time()-start)
 
 #%%
-plt.figure()
-plt.plot(images[0]['g']['sb.rad.pix'], images[0]['g']['sb.err'], lw=2)
+# calc_sb(images[0]['g'], error=True, step=4.)
+plt.figure(6)
+plt.plot(radius[:300], ynew[:300], color='gold', lw=1.)
+plt.axhline(0.)
+# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:], lw=2)
+# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:]+images[0]['g']['sb.err.mag'][-5:], lw=1, color='k')
+# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:]-images[0]['g']['sb.err.mag'][-5:], lw=1, color='k')
 plt.show()
+plt.close()
+
+#%%
+plt.figure(6)
+plt.plot(images[0]['g']['sb.rad.pix'][:], to_mag(images[0]['g']['sb'][:]), lw=2)
+plt.plot(images[0]['g']['sb.rad.pix'][:], images[0]['g']['sb'][:]+2.5*np.log10(1.+images[0]['g']['sb.err'][:]/images[0]['g']['sb']), lw=1, color='k')
+plt.plot(images[0]['g']['sb.rad.pix'][:], images[0]['g']['sb'][:]-2.5*np.log10(1.+images[0]['g']['sb.err'][:]/images[0]['g']['sb']), lw=1, color='k')
+plt.show()
+plt.close()
+
+# plt.figure(7)
+# plt.plot(images[0]['g']['sb.rad.pix'], images[0]['g']['sb.err']/images[0]['g']['sb'], lw=2)
+# plt.show()
+# plt.close()
 #%%
 from matplotlib.colors import Normalize
 plt.figure()

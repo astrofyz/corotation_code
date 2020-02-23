@@ -270,7 +270,9 @@ def make_images(names, bands='all', types='all',
                 total_error = calc_total_error(image[band]['real'], image[band]['bg'].background_rms, image[band]['gain'])
                 image[band].prop('total_error', data=total_error)
                 image[band].prop('real.bg', data=image[band]['real'] - image[band]['bg'].background)
-                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=22.5, texp=1.))
+                image[band]['zp'] = 22.5
+                image[band]['texp'] = 1.
+                image[band].prop('real.mag', data=to_mag(image=image[band]['real.bg'], zp=image[band]['zp'], texp=image[band]['texp']))
                 image[band].prop('total_error_mag', data=total_error/(image[band]['real']*image[band]['real.mag']))
             images.append(image)
 
