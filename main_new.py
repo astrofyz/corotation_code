@@ -12,7 +12,7 @@ import scipy.optimize as opt
 from scipy.interpolate import UnivariateSpline, splrep, splev, sproot
 from time import time
 from matplotlib.gridspec import GridSpec
-from scipy.signal import argrelextrema
+from scipy.signal import argrelextrema, savgol_filter
 
 # table_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/all_table_buta_rad_astrofyz.csv'
 # im_path = '/media/mouse13/Seagate Expansion Drive/corotation/buta_gal/image'
@@ -26,8 +26,10 @@ im_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/'
 out_path = '/media/mouse13/Seagate Expansion Drive/corotation/manga/pics/corot/'
 out_table_name = out_path+'ring_flag'
 names = [elem.split('.')[0] for elem in os.listdir(im_path+'input/')]
+# print(type(names[0]))
+# names = [elem.strip() for elem in open(im_path+'bad_pics').readlines()]
 
-# print(names)
+print(names)
 # images = make_images(names=names[:5], bands='all', types='all', path=im_path, SE=True, calibration=True, correction=True)
 # images = make_images(names=names[10:20], bands=['r', 'g', 'z'], types=['seg', 'real', 'cat'], path=dirbase, path_table=table_path, manga=True)
 # try other bands
@@ -47,10 +49,10 @@ def figure(num=1, **kw):
     plt.show()
     plt.close()
 
-
+#%%
 start = time()
 dn = 8
-n = len(names[:3])
+n = len(names[:])
 # print(n)
 chunk = 0
 for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkorange', 'm'][:1]):
@@ -59,7 +61,7 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
         dc = min(chunk + dn, n)
         images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
                              calibration=True, manga=True, path_table=table_path)
-        for image in images[:1]:
+        for image in images[:]:
             dg_radii = []
             try:
                 xc, yc = np.array([int(dim / 2) for dim in np.shape(image[band]['real.mag'])])
@@ -68,7 +70,7 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 ax1 = fig.add_subplot(gs[:, :2])
                 ax2 = fig.add_subplot(gs[0, 2:])
                 ax3 = fig.add_subplot(gs[1, 2:])
-                calc_sb(image[band], error=True)
+                calc_sb(image[band], error=True, step=1.)
                 rad = image[band]['sb.rad.pix']
                 radius = np.linspace(min(rad), max(rad), 500)
                 sb = image[band]['sb.mag']
@@ -76,12 +78,14 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 conv_kernel = Gaussian1DKernel(stddev=max([2, 0.05*len(rad)]))
                 sb_conv = convolve(sb, conv_kernel, boundary='extend')
                 curvature = find_curvature(rad, sb)
-                curvature_conv = find_curvature(rad, sb_conv)
-                curvature_conv1 = convolve(curvature, conv_kernel, boundary='extend')
+                # curvature = find_curvature(rad, savgol_filter(sb, 11, 3))
+                # curvature_conv = find_curvature(rad, sb_conv)
+                # curvature_conv1 = convolve(curvature, conv_kernel, boundary='extend')
                 ax1.imshow(image[band]['real.mag'], origin='lower', cmap='Greys',
                            norm=ImageNormalize(stretch=LinearStretch(slope=1.7)))
                 ax2.scatter(rad, sb, color=color, s=1.)
                 ax2.plot(rad, sb_conv, color=color, lw=.7, alpha=0.5)
+                # ax2.plot(rad, savgol_filter(sb, 11, 3), color='crimson', lw=.7, alpha=0.9)
                 ax2.fill_between(image[band]['sb.rad.pix'], image[band]['sb.mag'] - image[band]['sb.err.mag'],
                                  image[band]['sb.mag'] + image[band]['sb.err.mag'], color=color, alpha=0.1)
                 # ax3.plot(rad, curvature_conv, color='k', lw=1., alpha=0.6)
@@ -89,42 +93,46 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 ax3.plot(rad, curvature, color=color, lw=1., alpha=0.6)
                 ax3.axhline(0., color='k', lw=0.5)
                 # tck = splrep(rad, curvature_conv)
+                # tck = splrep(rad, curvature+0.001*np.ones(len(curvature)))
                 tck = splrep(rad, curvature)
                 ynew = splev(radius, tck)
-                ax3.plot(radius, ynew, color='gold', lw=1.)
+                ax3.plot(radius, ynew+0.001*np.ones(len(ynew)), color='gold', lw=1.)
                 roots = sproot(tck, mest=10)
+                roots = np.hstack([0., roots])
                 odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
                 # arg_max_curv_rad = signal.argrelextrema(curvature_conv, np.greater)
                 arg_max_curv_rad = signal.argrelextrema(curvature, np.greater)
                 max_curv_rad = np.append(rad[arg_max_curv_rad], rad[-1])
-                print(max_curv_rad)
+                # print(max_curv_rad)
                 for i in range(len(roots) - 1)[odd_flag:][::2]:
-                    ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.7)
-                    ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.7)
+                    # ax2.axvline(roots[i], color=color, lw=0.3, alpha=0.7)
+                    # ax2.axvline(roots[i+1], color=color, lw=0.3, alpha=0.7)
                     # try:
                     #     intervals.append([roots[i],
                     #                       rad[np.where((rad > roots[i+1])&(rad < roots[i+2]))][np.argmax(curvature_conv[np.where((rad > roots[i+1])&(rad < roots[i+2]))])]])
                     # except:
                     intervals.append([roots[i], roots[i+1]])
-                    ax3.axvline(intervals[-1][0], color='gold', ls='-')
-                    ax3.axvline(intervals[-1][1], color='gold', ls='-')
+                    ax3.axvline(intervals[-1][0], color='gold', ls='-', alpha=0.3)
+                    ax3.axvline(intervals[-1][1], color='gold', ls='-', alpha=0.3)
 
                 for interval in intervals:
                     idxs_rad = np.where((rad <= interval[1]) & (rad >= interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
                     p1 = np.poly1d(np.polyfit([rad[idxs_rad][0], rad[idxs_rad][-1]], [sb[idxs_rad][0], sb[idxs_rad][-1]], deg=1))
-                    ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
-                    if max(abs(p1(rad[idxs_rad])-sb[idxs_rad]))>max(sb_err[idxs_rad]):
-                    # if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err'][idxs_rad]):
+                    # if max(abs(p1(rad[idxs_rad])-sb[idxs_rad]))>max(sb_err[idxs_rad]):
+                    if (max(sb[idxs_rad])-min(sb[idxs_rad])) > np.max(image[band]['sb.err.mag'][idxs_rad]):
+                        # ax2.plot(rad[idxs_rad], p(rad[idxs_rad]), color='k')
+                        ax2.plot(rad, p(rad), color='k', lw=0.3)
                         try:
                             rad_gap = -p[1]/(2*p[2])
                             # if (rad_gap < interval[1]*1.1)&(rad_gap > 0.):
-                            if np.searchsorted(max_curv_rad, rad_gap) == np.searchsorted(max_curv_rad, interval[1]):
+                            # if np.searchsorted(max_curv_rad, rad_gap) == np.searchsorted(max_curv_rad, interval[1]):
+                            if rad_gap < rad[-1]:
                                 ax2.axvline(rad_gap, color=color, alpha=0.7, label=np.round(rad_gap/interval[1], 3))
-                                aper = CircularAperture([xc, yc], rad_gap)
-                                aper.plot(axes=ax1, lw=0.5, color=color)
-                                dg_radii.append(rad_gap)
+                            aper = CircularAperture([xc, yc], rad_gap)
+                            aper.plot(axes=ax1, lw=0.5, color=color)
+                            dg_radii.append(rad_gap)
                             # print('RAD_GAP/INT ', rad_gap/interval[1])
                             # else:
                             #     print('minimum on the edge')
@@ -140,12 +148,13 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 #     CircularAperture([xc, yc], rad_f[min_f2]).plot(axes=ax1, lw=0.5, color='k', alpha=0.5)
                 # except:
                 #     print('no fourier')
+                ax2.set_ylim(min(sb), max(sb))
                 ax2.invert_yaxis()
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['name'], band))
                 plt.tight_layout()
-                fig.show()
-                # fig.savefig(out_path+f"{band}/all_f_{str(image['objID'])}_{band}.png")
+                # fig.show()
+                fig.savefig(out_path+f"{band}/new_all_f_{str(image['objID'])}_{band}.png")
                 plt.close()
                 fout.write(';'.join([image['objID'], str(int(len(dg_radii)>0)), str(dg_radii), '\n']))
             # print(image['name'])
@@ -156,21 +165,18 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
 print(time()-start)
 
 #%%
-# calc_sb(images[0]['g'], error=True, step=4.)
-plt.figure(6)
-plt.plot(radius[:300], ynew[:300], color='gold', lw=1.)
-plt.axhline(0.)
-# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:], lw=2)
-# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:]+images[0]['g']['sb.err.mag'][-5:], lw=1, color='k')
-# plt.plot(images[0]['g']['sb.rad.pix'][-5:], images[0]['g']['sb.mag'][-5:]-images[0]['g']['sb.err.mag'][-5:], lw=1, color='k')
-plt.show()
-plt.close()
 
-#%%
+
+
+print(len(sb))
 plt.figure(6)
-plt.plot(images[0]['g']['sb.rad.pix'][:], to_mag(images[0]['g']['sb'][:]), lw=2)
-plt.plot(images[0]['g']['sb.rad.pix'][:], images[0]['g']['sb'][:]+2.5*np.log10(1.+images[0]['g']['sb.err'][:]/images[0]['g']['sb']), lw=1, color='k')
-plt.plot(images[0]['g']['sb.rad.pix'][:], images[0]['g']['sb'][:]-2.5*np.log10(1.+images[0]['g']['sb.err'][:]/images[0]['g']['sb']), lw=1, color='k')
+# plt.scatter(rad, sb, s=3.)
+# plt.plot(rad, savgol_filter(sb, 11, 3), color='crimson', lw=.7, alpha=0.9)
+plt.plot(rad, savgol_filter(sb, 31, 3), color='navy', lw=.7, alpha=0.9)
+plt.plot(rad, savgol_filter(sb, 21, 3), color='green', lw=.7, alpha=0.9)
+# plt.plot(images[0]['g']['sb.rad.pix'][:], to_mag(images[0]['g']['sb'][:]), lw=2)
+plt.plot(images[0]['g']['sb.rad.pix'][:], sb+2.5*np.log10(1.+images[0]['g']['sb.err.mag'][:]/images[0]['g']['sb']), lw=1, color='k')
+plt.plot(images[0]['g']['sb.rad.pix'][:], sb-2.5*np.log10(1.+images[0]['g']['sb.err.mag'][:]/images[0]['g']['sb']), lw=1, color='k')
 plt.show()
 plt.close()
 
