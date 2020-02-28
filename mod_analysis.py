@@ -24,6 +24,7 @@ import mod_read
 from contextlib import contextmanager
 from mod_prep_im import *
 import math
+from skimage import exposure
 
 
 def find_outer(image, **kwargs):
@@ -31,7 +32,7 @@ def find_outer(image, **kwargs):
     :returns : r.hist.pix, r.max.pix (0.99th quantile), r.min.pix (0.05th quantile), FD """
 
     if isinstance(image, mod_read.ImageClass):  # why import * and ImageClass is stayed not defined???
-        im = image['mask.center']
+        im = image['mask']
     else:
         im = image
     idx_main = np.array(np.where(im == 1))
@@ -57,9 +58,9 @@ def ellipse_fit(image, property_name=True, **kw):
     """
 
     if all(['r.' not in key.lower() for key in image.keys()]):
-        image.prop(['r.hist.pix', 'r.max.pix', 'r.min.pix'], data=find_outer(image['seg.center'])[:3])
+        image.prop(['r.hist.pix', 'r.max.pix', 'r.min.pix'], data=find_outer(image['seg'])[:3])
 
-    xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real.center'])])
+    xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real'])])
     eps = np.sqrt(1-(image['cat'][1].data.T[0]['B_IMAGE']/image['cat'][1].data.T[0]['A_IMAGE'])**2)
     pa = image['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.
     # sma0 = image['petroRad']/0.396  # in pixels
@@ -75,8 +76,11 @@ def ellipse_fit(image, property_name=True, **kw):
     aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
                                   geom_inp.pa)
     # чтобы построить начальный эллипс, нужно либо делать эту функцию методом класса, либо хранить всякие характеристики эллипса
-    ellipse = Ellipse(image['real.center'], geom_inp)
+    ellipse = Ellipse(image['real.mag'], geom_inp)
     # добавить флагов для различных методов и играться со всеми, пока не получится результат
+
+    eps = np.sqrt(1 - (image['cat'][1].data.T[0]['B_IMAGE']/image['cat'][1].data.T[0]['A_IMAGE'])**2)
+    pa = image['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.
 
     if 'maxsma' in kw:
         aper_fin = EllipticalAperture((geom_inp.x0, geom_inp.y0), maxsma,
@@ -85,14 +89,27 @@ def ellipse_fit(image, property_name=True, **kw):
         try:
             # warnings.simplefilter("error")
             isolist = ellipse.fit_image(step=step, maxsma=maxsma)
+            if property_name == 'list':
+                image.prop(['eps.list', 'pa.list'], data=[isolist.eps, isolist.pa])
+            elif property_name == 'single':
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
+            elif property_name:
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
         except:
             print("No meaningful fit is possible with maxsma")
             isolist = []
+            image.prop(['eps', 'pa'], data=[eps, pa])
             return 0
 
         if 'plot' in kw:
             with figure() as fig:
-                plt.imshow(image['real.center'], origin='lower', cmap='Greys_r', norm=ImageNormalize(stretch=LogStretch()))
+                plt.imshow(image['real.mag'], origin='lower', cmap='Greys_r')
                 aper_fin.plot(color='gold', alpha=0.5, lw=0.5)  # final ellipse guess
                 aper_inp.plot(color='dodgerblue', alpha=0.5, lw=0.5)  # initial ellipse guess
                 step_iso = int(len(isolist)/6.)
@@ -101,11 +118,23 @@ def ellipse_fit(image, property_name=True, **kw):
                     plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
 
     if 'fflag' in kw:
-        image_for_fit = ma.masked_array(image['real.center'], mask=np.ones_like(image['mask.center']) - image['mask.center'])
+        image_for_fit = ma.masked_array(image['real'], mask=np.ones_like(image['mask']) - image['mask'])
         ellipse = Ellipse(image_for_fit, geom_inp)
 
         try:
             isolist = ellipse.fit_image(step=step, maxgerr=maxgerr)
+            if property_name == 'list':
+                image.prop(['eps.list', 'pa.list'], data=[isolist.eps, isolist.pa])
+            elif property_name == 'single':
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
+            elif property_name:
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
         except:
             print("No meaningful fit is possible with maxgerr")
             isolist = []
@@ -113,7 +142,7 @@ def ellipse_fit(image, property_name=True, **kw):
 
         if 'plot' in kw:
             with figure() as fig:
-                plt.imshow(image['real.center'], origin='lower', cmap='Greys_r',
+                plt.imshow(image['real'], origin='lower', cmap='Greys_r',
                             norm=ImageNormalize(stretch=LogStretch()))
                 aper_inp.plot(color='dodgerblue', alpha=0.5, lw=0.5)  # initial ellipse guess
                 step_iso = int(len(isolist) / 6.)
@@ -124,6 +153,18 @@ def ellipse_fit(image, property_name=True, **kw):
     if 'maxgerr' in kw:
         try:
             isolist = ellipse.fit_image(step=step, maxgerr=maxgerr)
+            if property_name == 'list':
+                image.prop(['eps.list', 'pa.list'], data=[isolist.eps, isolist.pa])
+            elif property_name == 'single':
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
+            elif property_name:
+                if len(isolist.eps) < 1:
+                    image.prop(['eps', 'pa'], data=[eps, pa])
+                else:
+                    image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
         except:
             print("No meaningful fit is possible with maxgerr")
             isolist = []
@@ -131,7 +172,7 @@ def ellipse_fit(image, property_name=True, **kw):
 
         if 'plot' in kw:
             with figure() as fig:
-                plt.imshow(image['real.center'], origin='lower', cmap='Greys_r',
+                plt.imshow(image['real'], origin='lower', cmap='Greys_r',
                             norm=ImageNormalize(stretch=LogStretch()))
                 aper_inp.plot(color='dodgerblue', alpha=0.5, lw=0.5)  # initial ellipse guess
                 step_iso = int(len(isolist) / 6.)
@@ -139,34 +180,18 @@ def ellipse_fit(image, property_name=True, **kw):
                     x, y, = iso.sampled_coordinates()
                     plt.plot(x, y, color='cyan', lw=1, alpha=0.3)
 
-    if property_name=='list':
-        image.prop(['eps.list', 'pa.list'], data=[isolist.eps, isolist.pa])
-    elif property_name=='single':
-        if len(isolist.eps) < 1:
-            image.prop(['eps', 'pa'], data=[0., 0.])
-        else:
-            image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
-    elif property_name:
-        if len(isolist.eps) < 1:
-            image.prop(['eps', 'pa'], data=[0., 0.])
-        else:
-            image.prop(['eps', 'pa'], data=[isolist.eps[-1], isolist.pa[-1]])
 
-
-def calc_sb(image, error=True, **kw):
+def calc_sb(image, error=True, circ_aper=False, **kw):
     """image - instance of ImageClass (in certain band)
        step - width of elliptical annulus
         f_max - maximal semimajor axis / sma_catalog
     :returns array of radii and corresponding array of surface brightnesses in rings; (in pixels and mag) + errors if bg_rms  in **kw"""
 
     xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real'])])
-    theta = image['cat'][1].data.T[0]['THETA_IMAGE']  #degrees???
+    theta = image['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.  #degrees???
 
-    seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+    seg_func = lambda x: x['seg'] if 'seg' in x.keys() else x['seg']
 
-    # print(image.keys())
-    # print(['r.' not in key.lower() for key in image.keys()])
-    # print(all(['r.' not in key.lower() for key in image.keys()]))
     if all(['r.' not in key.lower() for key in image.keys()]):
         image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
@@ -174,20 +199,21 @@ def calc_sb(image, error=True, **kw):
         step = kw['step']
     else:
         step = find_outer(seg_func(image)[1:])[-1]*0.8
-        # print(step)
-        # step = image['FD']*0.8
 
     if 'eps' not in image:
         try:
-            ellipse_fit(image, maxgerr=True)
-            eps = image['eps']
+            # ellipse_fit(image, maxgerr=True)
+            eps = np.sqrt(1 - (image['cat'][1].data.T[0]['B_IMAGE'] / image['cat'][1].data.T[0]['A_IMAGE']) ** 2)
+            image['eps'] = eps
         except:
             eps = 0.
             image['eps'] = 0.
     else:
         eps = image['eps']
 
-    # print(step, image['r.max.pix'])
+    if circ_aper:
+        eps = 0.
+
     a = np.arange(step, image['r.max.pix'], step)
     b = a*np.sqrt(1 - eps**2)
 
@@ -195,49 +221,35 @@ def calc_sb(image, error=True, **kw):
     for i in range(1, len(a)):
         annulae.append(EllipticalAnnulus((xc, yc), a[i-1], a[i], b[i], theta=theta))
 
-    # print('fig start')
-    # print(len(annulae))
     # plt.figure()
     # plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
     # for ann in annulae[::2]:
-    #     # print(type(ann))
     #     ann.plot(lw=0.1)
     # plt.show()
     # plt.close()
     # print('fig end')
 
-
     if error:
         total_error = calc_total_error(image['real'], image['bg'].background_rms, image['gain'])
-        # plt.figure()
-        # plt.imshow(total_error)
-        # plt.colorbar()
-        # plt.show()
-        # bkg = calc_bkg(image['real.mag'], image['seg'])
-        # total_error = calc_total_error(image['real.mag'], bkg.background_rms, image['gain'])
-        # plt.figure()
-        # plt.imshow(total_error)
-        # plt.colorbar()
-        # plt.show()
+
         image.prop('total_error', data=total_error)
-        table_aper = aperture_photometry(image['real.bg'], annulae, error=image['total_error'])
-        # print(len(annulae), 'ann')imshow
-        # print((table_aper['aperture_sum_3']))
+        if 'adjust_contrast' in kw:
+            v_min, v_max = np.percentile(image['real.bg'], (kw['adjust_contrast'], 1-kw['adjust_contrast']))
+            image_work = exposure.rescale_intensity(image['real.bg'], in_range=(v_min, v_max))
+        else:
+            image_work = image['real.bg']
+
+        table_aper = aperture_photometry(image_work, annulae, error=image['total_error'])
         num_apers = int((len(table_aper.colnames) - 3)/2)
         intens = []
         int_error = []
         for i in range(num_apers):
-            # print(table_aper['aperture_sum_' + str(i)], annulae[i].area)
             try:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
                 int_error.append(table_aper['aperture_sum_err_'+str(i)] / (annulae[i].area))
-                # print(int_error[-1], annulae[i].area)
-                # print('sum', table_aper['aperture_sum_' + str(i)])
-                # print('err', table_aper['aperture_sum_err_'+str(i)])
             except:
                 intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
                 int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area()))
-                # print(int_error[-1], annulae[i].area())
         intens = np.array(intens).flatten()
         int_error = np.array(int_error).flatten()
         image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
@@ -270,7 +282,7 @@ def find_parabola(image, **kw):
 
     if isinstance(image, mod_read.ImageClass):
         if all(['r.' not in key.lower() for key in image.keys()]):
-            seg_func = lambda x: x['seg.center'] if 'seg.center' in x.keys() else x['seg']
+            seg_func = lambda x: x['seg'] if 'seg' in x.keys() else x['seg']
             image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
 
         if all(['sb' not in key.lower() for key in image.keys()]):
@@ -359,7 +371,7 @@ def calc_slit(image, n_slit=1, angle=0., step=1.2, width=3.5, **kw):
     width : width of slit
     kw: convolve: background is required"""
     if all(['r.' not in key.lower() for key in image.keys()]):
-        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
+        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without 
             try:
                 image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
             except:
@@ -477,7 +489,7 @@ def fourier_harmonics(image, harmonics=[1, 2, 3, 4], sig=5, plot=True, **kw):
     # phi_range = np.linspace(0, 2 * np.pi, 150)
 
     if all(['r.' not in key.lower() for key in image.keys()]):
-        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without .center
+        if ('seg' in image.keys()) & ('petro' not in kw):  #change centered to without 
             try:
                 image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(image['seg'])[1:])
             except:

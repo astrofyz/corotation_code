@@ -233,8 +233,9 @@ def make_images(names, bands='all', types='all',
             # print(name)
             image = ImageClass()
             for prop_name in ['objID', 'ra', 'dec']:  # check column names
-                image.prop(prop_name, data=all_table.loc[all_table.objID == name][prop_name])
+                image.prop(prop_name, data=all_table.loc[all_table.objID == int(name)][prop_name].values[0])
                 image['objID'] = name
+                # print('hey', image['ra'])
             img_file = fits.open(path+f'input/{name}.fits')
             if bands == None:
                 bands = img_file[0].header['BANDS']
@@ -242,6 +243,8 @@ def make_images(names, bands='all', types='all',
                 bands = bands
             for band in bands:
                 image[band] = ImageClass()
+                for prop_name in ['objID', 'ra', 'dec']:  # check column names
+                    image[band].prop(prop_name, data=image[prop_name])
                 if (types == None) or ('real' in types):
                     id_band = img_file[0].header['BANDS'].find(band)
                     image[band].prop(property_name='real', data=img_file[0].data[id_band])
