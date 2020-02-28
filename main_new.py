@@ -49,9 +49,10 @@ def figure(num=1, **kw):
     plt.show()
     plt.close()
 
-#%%
+
 start = time()
 dn = 10
+names = names[148:152]
 n = len(names[:])
 # print(n)
 chunk = 0
@@ -64,10 +65,8 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
         idx_elong = np.where(
             np.array([images[i]['g']['cat'][1].data.T[0]['B_IMAGE']/images[i]['g']['cat'][1].data.T[0]['A_IMAGE']
              for i in range(len(images))]) < 0.7)
-        # print(idx_elong)
-        # print(np.array([images[i]['g']['cat'][1].data.T[0]['B_IMAGE']/images[i]['g']['cat'][1].data.T[0]['A_IMAGE']
-        #      for i in range(len(images))]))
-        for image in images[:]:
+
+        for image in images[:1]:
             # fig_orig = plt.figure()
             # size = int(np.shape(image[band]['real.mag'])[0]/2)
             # plt.imshow(image[band]['real.mag'], origin='lower', cmap='Greys', extent=(-size, size, -size, size))
@@ -104,15 +103,18 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 ax3.plot(radius, ynew, color=color, lw=1., alpha=0.6, label='SG, wsize = 0.1*len, deg=3')
                 roots = sproot(tck, mest=10)
                 roots = np.hstack([0., roots])
-                odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
+                print(roots)
+                # odd_flag = int(splev(0.5 * (roots[0] + roots[1]), tck) > 0)  # 0 if negative in first interval
                 intervals = []
                 arg_max_curv_rad = signal.argrelextrema(curvature, np.greater)
                 max_curv_rad = np.append(rad[arg_max_curv_rad], rad[-1])
-                for i in range(len(roots) - 1)[odd_flag:][::2]:
-                    intervals.append([roots[i], roots[i+1]])
-                    ax3.axvline(intervals[-1][0], color='gold', ls='-', alpha=0.3)
-                    ax3.axvline(intervals[-1][1], color='gold', ls='-', alpha=0.3)
-
+                print(len(roots)-1)
+                for i in range(len(roots) - 1):   # [odd_flag:][::2]:
+                    if any(curvature[np.where((rad<roots[i+1])&(rad>roots[i]))] < 0):
+                        intervals.append([roots[i], roots[i+1]])
+                        ax3.axvline(intervals[-1][0], color='gold', ls='-', alpha=0.3)
+                        ax3.axvline(intervals[-1][1], color='gold', ls='-', alpha=0.3)
+                print(intervals)
                 for interval in intervals:
                     idxs_rad = np.where((rad <= interval[1]) & (rad >= interval[0]))
                     p = np.poly1d(np.polyfit(rad[idxs_rad], sb[idxs_rad], deg=2))
@@ -162,8 +164,8 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
                 fig.legend()
                 plt.suptitle('{}\nband: {}'.format(image['objID'], band))
                 plt.tight_layout()
-                # fig.show()
-                fig.savefig(out_path+f"{band}/b2a_l07_{str(image['objID'])}_{band}.png")
+                fig.show()
+                # fig.savefig(out_path+f"{band}/b2a_err_l015_{str(image['objID'])}_{band}.png")
                 plt.close(fig)
                 # fout.write(';'.join([image['objID'], str(image['ra']), str(image['dec']), str(int(len(dg_radii)>0)), str(len(dg_radii)), str(dg_radii), '\n']))
             # print(image['name'])
@@ -175,126 +177,40 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
 print(time()-start)
 
 #%%
-# print(len(images))
-# перестроить в эллиптических апертурах
-#%%
-plt.figure()
-plt.imshow(images[0]['g']['seg'], origin='lower')
-plt.show()
-plt.close()
-#%%
-eps = np.sqrt(1 - (images[0]['g']['cat'][1].data.T[0]['B_IMAGE'] / images[0]['g']['cat'][1].data.T[0]['A_IMAGE']) ** 2)
-geom_inp = EllipseGeometry(x0=xc, y0=yc, sma=20, eps=eps, pa=images[0]['g']['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.)
-aper_inp = EllipticalAperture((geom_inp.x0, geom_inp.y0), geom_inp.sma, geom_inp.sma*np.sqrt(1 - geom_inp.eps**2),
-                                  geom_inp.pa)
-#%%
 with figure() as fig:
-    plt.imshow(images[0]['g']['real.mag'], origin='lower', cmap='Greys_r')
-    eps = np.sqrt(
-        1 - (images[0]['g']['cat'][1].data.T[0]['B_IMAGE'] / images[0]['g']['cat'][1].data.T[0]['A_IMAGE']) ** 2)
-    # print('b', b, image['cat'][1].data.T[0]['THETA_IMAGE'])
-    b = rad_gap * np.sqrt(1 - eps ** 2)
-    aper = EllipticalAperture([256, 256], rad_gap, b, images[0]['g']['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.)
-    # aper = CircularAperture([0, 0], rad_gap)
-    aper.plot(lw=0.3, color=color)
+    plt.plot(rad[:30], curvature[:30])
+    plt.axhline(0.)
 
-    print(eps)
-    print(images[0]['g']['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.)
+print(curvature[:30])
+#%%
+# dn = 10
+# n = len(names[:])
+# # print(n)
+# chunk = 0
+# for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkorange', 'm'][:1]):
+#     fout = open(out_table_name + f'_{band}.csv', 'a')
+#     for chunk in range(0, n, dn):
+#         dc = min(chunk + dn, n)
+#         images = make_images(names=names[chunk:dc], bands=[band, ], types='all', path=im_path,
+#                              calibration=True, manga=True, path_table=table_path)
+#         idx_elong = np.where(
+#             np.array([images[i]['g']['cat'][1].data.T[0]['B_IMAGE']/images[i]['g']['cat'][1].data.T[0]['A_IMAGE']
+#              for i in range(len(images))]) < 0.7)
+#         for image in images[:]:
+#             fig_mask = plt.figure()
+#             plt.imshow(image[band]['real.mag'], origin='lower', cmap='Greys', extent=(-256, 256, -256, 256))
+#             ellipse = EllipticalAperture([0., 0.], image[band]['cat'][1].data.T[0]['A_IMAGE'],
+#                                          image[band]['cat'][1].data.T[0]['B_IMAGE'],
+#                                          image[band]['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.)
+#             ellipse.plot(axes=plt.gca(), lw=0.3, color='r')
+#             # plt.savefig(im_path+f"SE_ellipses/{str(image['objID'])}_{band}.png")
+#             plt.close(fig_mask)
+
 
 #%%
-print(images[0]['g'].keys())
-#%%
-sb_ell = calc_sb(images[0]['g'], error=True, step=1.)
-sb_circ = calc_sb(images[0]['g'], circ_aper = True, step=1.)
-#%%
-def calc_sb(image, error=True, circ_aper=False, **kw):
-    """image - instance of ImageClass (in certain band)
-       step - width of elliptical annulus
-        f_max - maximal semimajor axis / sma_catalog
-    :returns array of radii and corresponding array of surface brightnesses in rings; (in pixels and mag) + errors if bg_rms  in **kw"""
-
-    xc, yc = np.array([int(dim / 2) for dim in np.shape(image['real'])])
-    theta = image['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.  #degrees???
-
-    seg_func = lambda x: x['seg'] if 'seg' in x.keys() else x['seg']
-
-    if all(['r.' not in key.lower() for key in image.keys()]):
-        image.prop(['r.max.pix', 'r.min.pix', 'FD'], data=find_outer(seg_func(image))[1:])
-
-    if 'step' in kw:
-        step = kw['step']
-    else:
-        step = find_outer(seg_func(image)[1:])[-1]*0.8
-
-    if 'eps' not in image:
-        try:
-            # ellipse_fit(image, maxgerr=True)
-            eps = np.sqrt(1 - (image['cat'][1].data.T[0]['B_IMAGE'] / image['cat'][1].data.T[0]['A_IMAGE']) ** 2)
-            image['eps'] = eps
-        except:
-            eps = 0.
-            image['eps'] = 0.
-    else:
-        eps = image['eps']
-
-    if circ_aper:
-        eps = 0.
-
-    a = np.arange(step, image['r.max.pix'], step)
-    b = a*np.sqrt(1 - eps**2)
-
-    annulae = []
-    for i in range(1, len(a)):
-        annulae.append(EllipticalAnnulus((xc, yc), a[i-1], a[i], b[i], theta=theta))
-
-    # plt.figure()
-    # plt.imshow(image['real.mag'], origin='lower', cmap='Greys')
-    # for ann in annulae[::2]:
-    #     ann.plot(lw=0.1)
-    # plt.show()
-    # plt.close()
-    # print('fig end')
-
-    if error:
-        total_error = calc_total_error(image['real'], image['bg'].background_rms, image['gain'])
-
-        image.prop('total_error', data=total_error)
-        if 'adjust_contrast' in kw:
-            v_min, v_max = np.percentile(image['real.bg'], (kw['adjust_contrast'], 1-kw['adjust_contrast']))
-            image_work = exposure.rescale_intensity(image['real.bg'], in_range=(v_min, v_max))
-        else:
-            image_work = image['real.bg']
-
-        table_aper = aperture_photometry(image_work, annulae, error=image['total_error'])
-        num_apers = int((len(table_aper.colnames) - 3)/2)
-        intens = []
-        int_error = []
-        for i in range(num_apers):
-            try:
-                intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area)
-                int_error.append(table_aper['aperture_sum_err_'+str(i)] / (annulae[i].area))
-            except:
-                intens.append(table_aper['aperture_sum_' + str(i)] / annulae[i].area())
-                int_error.append(table_aper['aperture_sum_err_'+str(i)] / np.sqrt(annulae[i].area()))
-        intens = np.array(intens).flatten()
-        int_error = np.array(int_error).flatten()
-        image.prop(['sb.rad.pix', 'sb', 'sb.err'], data=[(a[1:] + a[:-1]) / 2., intens, int_error])
-        image.prop(['sb.mag', 'sb.err.mag'],
-                   data=[to_mag(intens, zp=image['zp'], texp=image['texp']), abs(2.5*np.log10(1+int_error/intens))])
-        return (a[1:] + a[:-1]) / 2., intens, int_error
-    else:
-        table_aper = aperture_photometry(image['real.bg'], annulae)
-        num_apers = len(table_aper.colnames) - 3
-        intens = []
-        for i in range(num_apers):
-            intens.append(table_aper['aperture_sum_' + str(i)][0] / annulae[i].area())
-        image.prop(['sb.rad.pix', 'sb'], data=[(a[1:] + a[:-1]) / 2., np.array(intens)])
-        return (a[1:] + a[:-1]) / 2., np.array(intens)
-
-#%%
-plt.figure()
-plt.scatter(sb_ell[0], to_mag(sb_ell[1], 22.5, 1.), s=5.)
-plt.scatter(sb_circ[0], to_mag(sb_circ[1], 22.5, 1.), s=5., color='crimson')
-plt.gca().invert_yaxis()
-plt.show()
-plt.close()
+# plt.figure()
+# plt.scatter(sb_ell[0], to_mag(sb_ell[1], 22.5, 1.), s=5.)
+# plt.scatter(sb_circ[0], to_mag(sb_circ[1], 22.5, 1.), s=5., color='crimson')
+# plt.gca().invert_yaxis()
+# plt.show()
+# plt.close()
