@@ -49,10 +49,10 @@ def figure(num=1, **kw):
     plt.show()
     plt.close()
 
-
+#%%
 start = time()
 dn = 10
-names = names[148:152]
+names = names[137:139]
 n = len(names[:])
 # print(n)
 chunk = 0
@@ -177,11 +177,70 @@ for band, color in zip(['g', 'r', 'z', 'i', 'u'][:1], ['blue', 'r', 'g', 'darkor
 print(time()-start)
 
 #%%
-with figure() as fig:
-    plt.plot(rad[:30], curvature[:30])
-    plt.axhline(0.)
+from astropy.modeling import models, fitting
+import warnings
 
-print(curvature[:30])
+step = 2.
+# r_eff = images[0]['g']['petroR90']
+r_eff = 100.
+eps = np.sqrt(1 - (images[0]['g']['cat'][1].data.T[0]['B_IMAGE'] /
+                                                   images[0]['g']['cat'][1].data.T[0]['A_IMAGE']) ** 2)
+b = r_eff*np.sqrt(1 - eps**2)
+theta = images[0]['g']['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.
+annulus = EllipticalAnnulus((256, 256), r_eff, r_eff+step, b, theta=theta)
+table_aper = aperture_photometry(images[0]['g']['real.bg'], annulus)
+amp = table_aper['aperture_sum']/annulus.area
+p_init1d = models.Sersic1D(amp, r_eff, 3.)
+fit_p = fitting.LevMarLSQFitter()
+p_1d = fit_p(p_init1d, rad, images[0]['g']['sb'])
+
+
+def sersic(Ie, Re, R, m):
+    bm = 2.0 * m - 0.324
+    return Ie * np.exp(-bm * ((R / Re) ** (1.0 / m) - 1.0))
+
+
+with figure() as fig:
+    plt.plot(rad, sb, color='crimson')
+    plt.plot(rad, to_mag(p_1d(rad), 22.5, 1.), color='rebeccapurple')
+
+#%%
+step = 2.
+r_eff = images[0]['g']['petroR90']
+eps = np.sqrt(1 - (images[0]['g']['cat'][1].data.T[0]['B_IMAGE'] /
+                                                   images[0]['g']['cat'][1].data.T[0]['A_IMAGE']) ** 2)
+b = r_eff*np.sqrt(1 - eps**2)
+theta = images[0]['g']['cat'][1].data.T[0]['THETA_IMAGE']*np.pi/180.
+annulus = EllipticalAnnulus((256, 256), r_eff, r_eff+step, b, theta=theta)
+table_aper = aperture_photometry(images[0]['g']['real.bg'], annulus)
+amp = table_aper['aperture_sum']
+
+p_init = models.Sersic2D(amp, r_eff, 4., 256., 256., eps, theta)
+fit_p = fitting.LevMarLSQFitter()
+
+x,y = np.meshgrid(np.arange(512), np.arange(512))
+z = images[0]['g']['real.bg']
+with warnings.catch_warnings():
+    # Ignore model linearity warning from the fitter
+    warnings.simplefilter('ignore')
+    p = fit_p(p_init, x, y, z)
+
+#%%
+x,y = np.meshgrid(np.arange(512), np.arange(512))
+img = p(x, y)
+log_img = np.log10(img)
+
+plt.figure()
+plt.imshow(log_img, origin='lower', interpolation='nearest')
+# plt.imshow(to_mag(z - p(x, y), 22.5, 1.), origin='lower', interpolation='nearest')
+plt.xlabel('x')
+plt.ylabel('y')
+cbar = plt.colorbar()
+cbar.set_label('Log Brightness', rotation=270, labelpad=25)
+cbar.set_ticks([-1, 0, 1, 2], update_ticks=True)
+plt.show()
+
+
 #%%
 # dn = 10
 # n = len(names[:])
